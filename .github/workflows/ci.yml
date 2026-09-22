@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  # Not a real connection string — CI doesn't run against a database.
+  # This exists only so any module that validates env vars at import
+  # time (see src/server/env.ts) doesn't fail before reaching a step
+  # that actually needs Postgres. e2e (which does need a real DB) is
+  # intentionally not run in CI yet — see docs/ROADMAP.md M3.
+  DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@24
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Check layer boundaries
+        run: pnpm run check:boundaries
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Build
+        run: pnpm run build
