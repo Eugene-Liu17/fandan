@@ -1,0 +1,23 @@
+# Local Postgres for development. Mirrors the Postgres major version
+# Supabase currently defaults new hosted projects to (17). See
+# docs/DECISIONS.md ADR-004.
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fandan
+      POSTGRES_PASSWORD: fandan
+      POSTGRES_DB: fandan
+    ports:
+      - "5432:5432"
+    volumes:
+      - fandan-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fandan -d fandan"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+volumes:
+  fandan-db-data:
