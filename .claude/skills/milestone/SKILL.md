@@ -1,0 +1,26 @@
+---
+name: milestone
+description: Run one roadmap milestone end to end — plan, branch, implement, review, and open a PR.
+disable-model-invocation: true
+argument-hint: <M1..M6>
+---
+
+Run milestone $ARGUMENTS from docs/ROADMAP.md end to end:
+
+1. Read the `$ARGUMENTS` section of docs/ROADMAP.md and list its
+   acceptance criteria back to the user.
+2. Write an implementation plan (plan mode) and get it approved before
+   editing anything.
+3. Branch from `main`: `git switch -c feat/m<N>-<slug>`.
+4. Implement in small steps, verifying each one (typecheck/lint/test/
+   boundaries) before moving to the next.
+5. Once every check passes, launch the `spec-reviewer` subagent against
+   the branch diff.
+6. Fix only what `spec-reviewer` flags as affecting correctness or a
+   requirement — not style preferences.
+7. Update the checkboxes for this milestone in docs/ROADMAP.md. If any
+   new decision was made along the way, add or update the matching ADR
+   in docs/DECISIONS.md.
+8. Commit (Conventional Commits) and run `gh pr create`. The PR
+   description must address each acceptance criterion individually and
+   include the test evidence (command output) proving it.
