@@ -1,6 +1,7 @@
 # Roadmap
 
-Each milestone is one session, one branch, one PR. See
+Each milestone is broken into tasks in [TASKS.md](TASKS.md); each task is
+one session; a milestone is normally one branch and one PR. See
 [.claude/skills/milestone/SKILL.md](../.claude/skills/milestone/SKILL.md)
 for the standard workflow.
 

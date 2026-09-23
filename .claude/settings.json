@@ -28,9 +28,9 @@
       "Edit(!.env.example)",
       "Bash(rm -rf *)",
       "Bash(git push --force*)",
-      "Bash(git push -f*)",
-      "Bash(git push origin main*)"
-    ]
+      "Bash(git push -f*)"
+    ],
+    "ask": ["Bash(git push*)"]
   },
   "hooks": {
     "PreToolUse": [
