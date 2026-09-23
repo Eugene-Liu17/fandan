@@ -21,7 +21,7 @@ milestone into tasks. Architecture decisions live in
 
 | ID | Title | Milestone | Depends on | Branch | Status |
 | --- | --- | --- | --- | --- | --- |
-| T0 | Fix CI and M0 leftovers | M0 | — | `main` (direct) | in review |
+| T0 | Fix CI and M0 leftovers | M0 | — | `main` (direct) | done |
 | T1 | M1 data model design (docs only) | M1 | T0 | `feat/m1-data-layer` | todo |
 | T2 | Domain foundations | M1 | T1 | `feat/m1-data-layer` | todo |
 | T3 | Domain rules | M1 | T2 | `feat/m1-data-layer` | todo |
@@ -52,8 +52,8 @@ Next generates during `next dev` / `next build` / `next typegen`. CI runs
 **Out of scope**: editing migration `0000` (already applied; see CLAUDE.md).
 
 **Acceptance criteria**
-- [ ] `rm -rf .next && pnpm run typecheck` passes locally.
-- [ ] CI is green on the PR.
+- [x] `pnpm run typecheck` passes with no `.next` directory (verified in a clean worktree).
+- [x] CI is green on `main` (run 35916704393).
 
 **Open questions**: none.
 
