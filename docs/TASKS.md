@@ -22,7 +22,7 @@ milestone into tasks. Architecture decisions live in
 | ID | Title | Milestone | Depends on | Branch | Status |
 | --- | --- | --- | --- | --- | --- |
 | T0 | Fix CI and M0 leftovers | M0 | — | `main` (direct) | done |
-| T1 | M1 data model design (docs only) | M1 | T0 | `feat/m1-data-layer` | todo |
+| T1 | M1 data model design (docs only) | M1 | T0 | `feat/m1-data-layer` | done |
 | T2 | Domain foundations | M1 | T1 | `feat/m1-data-layer` | todo |
 | T3 | Domain rules | M1 | T2 | `feat/m1-data-layer` | todo |
 | T4 | Schema, migrations, seed | M1 | T2 | `feat/m1-data-layer` | todo |
@@ -65,10 +65,9 @@ Next generates during `next dev` / `next build` / `next typegen`. CI runs
 schema or domain code is written.
 
 **Scope**
-- **ADR-006 — multiple dishes per meal slot.** Revises ADR-003. Preferred
-  direction: `meals` stays one table, one row per dish, `(user_id, date,
-  slot)` is not unique, add a `position` column, and status is tracked
-  per dish. Must define:
+- **ADR-006 — multiple dishes per meal slot.** Revises ADR-003. Two
+  tables: `meals` (one row per slot, unique on `(user_id, date, slot)`)
+  and `meal_dishes` (one row per dish, with its own status). Must define:
   - a slot with no rows is "unknown" (SPEC principle 5);
   - what happens to planned dishes when a slot is marked "ate out";
   - how the default number of dishes per meal follows household size.
@@ -94,14 +93,14 @@ schema or domain code is written.
 **Out of scope**: any code, schema file, or migration.
 
 **Acceptance criteria**
-- [ ] ADR-006, ADR-007, ADR-008 merged; ADR-003 marked as revised.
-- [ ] SPEC.md "Data model" updated to the refined version.
-- [ ] Every open question is either resolved or explicitly deferred to a
+- [x] ADR-006, ADR-007, ADR-008 written; ADR-003 marked as revised.
+- [x] SPEC.md "Data model" updated to the refined version.
+- [x] Every open question is either resolved or explicitly deferred to a
       named task.
 
-**Open questions**
-- Default dishes per meal as a function of household size.
-- Whether `taste_facts` restrictions need an expiry (e.g. temporary diets).
+**Open questions**: none. Resolved: default dishes per meal is derived from
+household size (ADR-006). Deferred: restriction expiry (e.g. temporary
+diets) is out of MVP; `taste_facts.deleted_at` covers retracting a fact.
 
 ---
 
@@ -115,8 +114,11 @@ schema or domain code is written.
 - Plain-date helpers per ADR-007; adjust `week.ts` accordingly.
 - Ingredient dictionary, `normalizeIngredient`, standard condiments list.
 - Recipe `features` Zod schema and fixed vocabularies.
-- Meal status state machine: allowed transitions; no record means
-  "unknown", never "cooked".
+- Meal status state machines for both levels (slot status and dish
+  status, per ADR-006): allowed transitions; no record means "unknown",
+  never "cooked"; marking a slot `ate_out` sets its planned dishes to
+  `not_eaten`.
+- `defaultDishesPerMeal(householdSize)` (ADR-006).
 
 **Acceptance criteria**
 - [ ] Every exported function has a unit test.
@@ -165,7 +167,8 @@ functions.
 
 **Scope** (follow `.claude/skills/db-change/SKILL.md`)
 - Tables: `users`, `taste_facts`, `pantry_items`, `recipes`, `meals`,
-  `events`, `conversations`, `messages`.
+  `meal_dishes`, `events`, `conversations`, `messages`, exactly as in the
+  SPEC.md data model.
 - Every user-data table has an indexed `user_id`; primary keys are uuid
   with default `gen_random_uuid()`; timestamps are `timestamptz`.
 - `users.id` is uuid so it can match Supabase `auth.users.id` in M6.

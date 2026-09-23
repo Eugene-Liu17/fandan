@@ -76,6 +76,10 @@ invents, because the filter runs in code the model doesn't control.
 
 ## ADR-003: Plan and actual share one table (`meals`)
 
+> **Revised by [ADR-006](#adr-006-a-meal-slot-holds-multiple-dishes)** (multiple dishes per
+> slot). The decision that plan and actual share the same rows still stands; the table
+> shape below is superseded.
+
 **Context**
 
 A naive design keeps a separate "planned menu" table and a separate
@@ -164,3 +168,139 @@ One more devDependency and one more config file, but the boundary check
 can't be defeated by import style. `check:boundaries` runs in CI
 alongside typecheck/lint/test, so a violation fails the build the same
 way a type error would.
+
+---
+
+## ADR-006: A meal slot holds multiple dishes
+
+**Context**
+
+ADR-003 modeled a meal slot as one row with a single `planned_recipe_id`. A Chinese
+home-cooked dinner is usually several dishes (a meat dish, a vegetable, a soup), and
+each dish can independently be cooked, skipped, or rated. A slot can also be entirely
+eaten out, or not eaten at all, which are facts about the slot rather than about any
+one dish.
+
+**Decision**
+
+Two tables:
+
+- **`meals`** — one row per `(user_id, date, slot)`, unique. Slot status:
+  `draft` / `planned` / `cooked` / `skipped` / `ate_out`. `cooked` means eaten at
+  home; `skipped` means the meal was not eaten. A slot with **no row is "unknown"**
+  (SPEC core principle 5), never "cooked".
+- **`meal_dishes`** — the dishes in a slot: `position`, `recipe_id` (nullable),
+  `dish_name` and `features` (snapshots taken when the row is created, so later
+  recipe edits do not rewrite history), dish status
+  `draft` / `planned` / `eaten` / `not_eaten`, `rating` (1–5), `note`.
+
+Plan and actual still share the same rows, as in ADR-003: planning writes `planned`,
+marking and the "review last week" step move rows to `eaten` / `not_eaten`.
+
+Rules:
+
+- Marking a slot `ate_out` sets its planned dishes to `not_eaten` (kept as history)
+  and adds the dishes eaten out as `eaten` rows. A dish name is optional; a row with
+  no name contributes nothing to dedupe.
+- Marking a slot `cooked` without a per-dish answer leaves its dishes `planned`. Only
+  the review step (or a per-dish mark) sets `eaten` / `not_eaten`. The app never
+  assumes a planned dish was eaten.
+- Dedupe reads `meal_dishes` with status `eaten`, joined to `meals.date`.
+- The number of dishes per meal is the user preference `dishes_per_meal`. Its default
+  is derived from household size (1 → 1, 2 → 2, 3–4 → 3, 5 or more → 4) by a pure
+  function in `src/domain`.
+
+**Consequences**
+
+The unique slot row turns concurrent writes from the chat and the calendar into an
+upsert instead of a race, and gives slot-level states (ate out, skipped) a natural
+home. Dedupe needs one extra join. Every reader has to handle two status enums
+(slot and dish), so the state machine in `src/domain` covers both.
+
+---
+
+## ADR-007: Dates are the user's local calendar dates
+
+**Context**
+
+`src/domain/week.ts` computes weeks from UTC instants. That is wrong for the target
+users: someone in US Pacific time eating dinner at 8 pm is already on the next UTC
+day, so a UTC-based week grid would put the meal in the wrong cell.
+
+**Decision**
+
+- `meals.date` is a Postgres `date`: the user's local calendar date, with no time
+  component.
+- `users.timezone` (IANA name, captured from the browser at onboarding) and
+  `users.week_starts_on` (0 = Sunday, 1 = Monday; default 1).
+- `src/domain` works with plain `YYYY-MM-DD` dates. "Today" is computed in the
+  services layer from `now` and the user's timezone, then passed into domain
+  functions as a parameter (domain still never reads the clock).
+- Audit timestamps (`created_at`, `updated_at`, ...) stay UTC `timestamptz`, as
+  `.claude/rules/db.md` requires.
+
+**Consequences**
+
+Week boundaries and dedupe windows are counted in the user's own days. `week.ts`
+gets a plain-date variant in T2; the UTC-instant helpers are removed once nothing
+uses them.
+
+---
+
+## ADR-008: Ingredient vocabulary, restrictions, and recipe features
+
+**Context**
+
+Allergy filtering, "same main ingredient + flavor" dedupe, and the shopping-list set
+difference all compare ingredients. Recipe text says 五花肉, 猪五花, and 带皮五花; a
+user says "pork" or "猪肉". Without one shared vocabulary each rule would compare
+strings differently and silently disagree.
+
+**Decision**
+
+**Ingredient dictionary.** A reviewed constant in `src/domain`, not a database table:
+`key` (English snake_case), Chinese canonical name, aliases, category, allergen tags.
+`normalizeIngredient(raw)` returns the key, or marks the name unmapped. M2's import
+reports unmapped names so the dictionary grows through PRs.
+
+- Allergen tags: `peanut`, `tree_nut`, `milk`, `egg`, `fish`, `crustacean`, `mollusc`,
+  `soy`, `wheat`, `sesame`.
+- Categories (used by diet rules and coarse grouping): `pork`, `beef`, `lamb`,
+  `poultry`, `seafood`, `vegetable`, `legume`, `grain`, `dairy_egg`, `fungus`, ...
+
+**Restrictions.** Stored in `taste_facts` with `type = restriction`. `content` is what
+the user said; `payload` is one of `{kind: 'allergen', tag}`,
+`{kind: 'category', category}`, `{kind: 'ingredient', key}`, `{kind: 'term', text}`.
+
+**The filter is conservative: when in doubt, exclude.** A recipe is excluded if any
+ingredient matches a restriction by tag, category, or key, **or** if the raw
+ingredient name contains the restriction's term or one of its aliases as a substring.
+Free text that cannot be mapped to the dictionary becomes a `term` restriction and is
+never dropped.
+
+**Standard condiments.** A domain constant of durable pantry staples: cooking oil,
+salt, sugar, light and dark soy sauce, vinegar, cooking wine, oyster sauce, starch,
+white pepper, chicken bouillon. Scallion, ginger, and garlic are fresh, run out, and
+are **not** on the list, so they appear on the shopping list unless the pantry has
+them.
+
+**Recipe features.** A Zod schema in `src/domain`, reused by M2's labeling script.
+Fixed English-key vocabularies (Chinese labels live in the UI):
+
+- `role`: `meat` / `vegetable` / `soup` / `staple` / `mixed` (used to compose a meal
+  such as one meat, one vegetable, one soup)
+- `cuisine`, `method`, `flavor`
+- `main_ingredient`: a dictionary key, i.e. the **specific** ingredient (五花肉 and
+  排骨 are different)
+- `oil_level`: `low` / `medium` / `high`
+
+Dedupe's "same main ingredient + flavor" compares the `main_ingredient` key and
+`flavor`.
+
+**Consequences**
+
+One normalization function feeds all three rules. The dictionary is code, so every
+change is diffable and covered by a test; the cost is that a growing dictionary needs
+maintenance. Conservative substring matching will occasionally over-exclude a
+harmless dish, which is the intended trade-off: a missed allergen is a bug, an
+over-excluded dish is not.
