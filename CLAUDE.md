@@ -29,5 +29,5 @@ Next.js 16 may differ from your training data — read AGENTS.md before using an
 ## Workflow
 - One task from docs/TASKS.md per session. Start in plan mode and get the plan approved before editing.
 - Before calling a task done: run typecheck, lint, tests, and boundaries, and show the output.
-- Branch per task: `<type>/m<N>-<slug>` (name given in TASKS.md); update the task's status in TASKS.md in the same PR. Conventional Commits. Merge to main only via PR (`gh pr create`).
+- Branch per larger feature (usually a milestone), not per task: tasks are commits on it, named in TASKS.md as `<type>/m<N>-<slug>`. Update the task's status in TASKS.md when finishing it. Conventional Commits. Merge to main only via PR (`gh pr create`).
 - When compacting, preserve: current task and milestone, modified files, failing test names, open questions.

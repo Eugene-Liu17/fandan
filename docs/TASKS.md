@@ -6,11 +6,14 @@ milestone into tasks. Architecture decisions live in
 
 ## Workflow
 
-- One task = one session = one branch = one PR.
-- Branch name: `<type>/m<N>-<slug>` (the name is given in each task below).
-- Update the task's status in this file inside the same PR that works on it.
-- Tick a milestone's boxes in ROADMAP.md only when the last task of that
-  milestone is merged.
+- One task = one session. Sessions are not tied to branches.
+- Branch per larger feature (usually a milestone), not per task: its
+  tasks are commits on that branch, and the branch gets one PR. Small
+  standalone fixes get their own short branch, since `main` only takes
+  changes through a PR.
+- Branch name: `<type>/m<N>-<slug>` (the name is given in the Index).
+- Update the task's status in this file in the commit that finishes it.
+- Tick a milestone's boxes in ROADMAP.md when the milestone's PR merges.
 - Start each session in plan mode; get the plan approved before editing.
 - Status values: `todo` / `in progress` / `in review` / `done`.
 
@@ -19,13 +22,14 @@ milestone into tasks. Architecture decisions live in
 | ID | Title | Milestone | Depends on | Branch | Status |
 | --- | --- | --- | --- | --- | --- |
 | T0 | Fix CI and M0 leftovers | M0 | — | `chore/m0-ci-fix` | todo |
-| T1 | M1 data model design (docs only) | M1 | T0 | `docs/m1-data-model` | todo |
-| T2 | Domain foundations | M1 | T1 | `feat/m1-domain-core` | todo |
-| T3 | Domain rules | M1 | T2 | `feat/m1-domain-rules` | todo |
-| T4 | Schema, migrations, seed | M1 | T2 | `feat/m1-schema` | todo |
-| T5 | Repositories, services, integration tests | M1 | T3, T4 | `feat/m1-services` | todo |
+| T1 | M1 data model design (docs only) | M1 | T0 | `feat/m1-data-layer` | todo |
+| T2 | Domain foundations | M1 | T1 | `feat/m1-data-layer` | todo |
+| T3 | Domain rules | M1 | T2 | `feat/m1-data-layer` | todo |
+| T4 | Schema, migrations, seed | M1 | T2 | `feat/m1-data-layer` | todo |
+| T5 | Repositories, services, integration tests | M1 | T3, T4 | `feat/m1-data-layer` | todo |
 
-T3 and T4 can run in parallel once T2 is merged.
+T1–T5 share one branch, so they run in order; T3 and T4 do not depend on
+each other.
 
 ---
 
@@ -203,6 +207,6 @@ call, tested against a real Postgres.
       calendar edits are visible to the next chat turn).
 - [ ] A two-user test proves queries are isolated by `user_id`.
 - [ ] `spec-reviewer` has been run on the branch.
-- [ ] M1 boxes ticked in ROADMAP.md.
+- [ ] M1 boxes ticked in ROADMAP.md (in the PR for `feat/m1-data-layer`).
 
 **Open questions**: none beyond earlier tasks.

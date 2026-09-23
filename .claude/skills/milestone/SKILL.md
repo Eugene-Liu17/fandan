@@ -13,8 +13,9 @@ docs/ROADMAP.md.
    for a milestone) and list its acceptance criteria back to the user.
 2. Write an implementation plan (plan mode) and get it approved before
    editing anything.
-3. Branch from `main` using the branch name given in docs/TASKS.md
-   (`git switch -c <type>/m<N>-<slug>`).
+3. Use the branch named in docs/TASKS.md. If it does not exist yet,
+   create it from `main` (`git switch -c <type>/m<N>-<slug>`); if it
+   does, switch to it. Tasks of the same feature share one branch.
 4. Implement in small steps, verifying each one (typecheck/lint/test/
    boundaries) before moving to the next.
 5. Once every check passes, launch the `spec-reviewer` subagent against
@@ -23,8 +24,9 @@ docs/ROADMAP.md.
    requirement — not style preferences.
 7. Update the task's status in docs/TASKS.md. Tick a milestone's
    checkboxes in docs/ROADMAP.md only when this is the last task of that
-   milestone. If any new decision was made along the way, add or update
+   milestone (that is also when the branch's PR is opened). If any new decision was made along the way, add or update
    the matching ADR in docs/DECISIONS.md.
-8. Commit (Conventional Commits) and run `gh pr create`. The PR
+8. Commit (Conventional Commits). Run `gh pr create` only when the
+   last task on the branch is done. The PR
    description must address each acceptance criterion individually and
    include the test evidence (command output) proving it.
