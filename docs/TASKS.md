@@ -21,7 +21,7 @@ milestone into tasks. Architecture decisions live in
 
 | ID | Title | Milestone | Depends on | Branch | Status |
 | --- | --- | --- | --- | --- | --- |
-| T0 | Fix CI and M0 leftovers | M0 | — | `main` (direct) | todo |
+| T0 | Fix CI and M0 leftovers | M0 | — | `main` (direct) | in review |
 | T1 | M1 data model design (docs only) | M1 | T0 | `feat/m1-data-layer` | todo |
 | T2 | Domain foundations | M1 | T1 | `feat/m1-data-layer` | todo |
 | T3 | Domain rules | M1 | T2 | `feat/m1-data-layer` | todo |
