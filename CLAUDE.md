@@ -1,6 +1,6 @@
 # Fandan (饭单)
 
-AI chat-based weekly home-cooking planner. Spec: docs/SPEC.md. Milestones: docs/ROADMAP.md. Decisions: docs/DECISIONS.md.
+AI chat-based weekly home-cooking planner. Spec: docs/SPEC.md. Milestones: docs/ROADMAP.md. Tasks: docs/TASKS.md. Decisions: docs/DECISIONS.md.
 
 Next.js 16 may differ from your training data — read AGENTS.md before using an App Router API you're not certain of.
 
@@ -27,7 +27,7 @@ Next.js 16 may differ from your training data — read AGENTS.md before using an
 - UI copy is Simplified Chinese. Code, comments, and commits are English.
 
 ## Workflow
-- One milestone per session. Start in plan mode and get the plan approved before editing.
+- One task from docs/TASKS.md per session. Start in plan mode and get the plan approved before editing.
 - Before calling a task done: run typecheck, lint, tests, and boundaries, and show the output.
-- Branch per milestone: `feat/m<N>-<slug>`. Conventional Commits. Merge to main only via PR (`gh pr create`).
-- When compacting, preserve: current milestone, modified files, failing test names, open questions.
+- Branch per task: `<type>/m<N>-<slug>` (name given in TASKS.md); update the task's status in TASKS.md in the same PR. Conventional Commits. Merge to main only via PR (`gh pr create`).
+- When compacting, preserve: current task and milestone, modified files, failing test names, open questions.

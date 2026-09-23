@@ -18,7 +18,8 @@ Steps:
    context) to see everything this branch changed.
 2. Read `docs/SPEC.md`, in particular the "Core principles" section and
    the "Acceptance criteria" for the current milestone (cross-reference
-   docs/ROADMAP.md for which milestone this branch is doing).
+   docs/ROADMAP.md for which milestone this branch is doing), and the
+   acceptance criteria of the current task in docs/TASKS.md.
 3. Check the diff against:
    - Are all of this milestone's requirements actually implemented?
    - Do the edge cases from `.claude/rules/domain.md` (empty pantry, a
