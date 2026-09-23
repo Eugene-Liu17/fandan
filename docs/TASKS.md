@@ -9,8 +9,8 @@ milestone into tasks. Architecture decisions live in
 - One task = one session. Sessions are not tied to branches.
 - Branch per larger feature (usually a milestone), not per task: its
   tasks are commits on that branch, and the branch gets one PR. Small
-  standalone fixes get their own short branch, since `main` only takes
-  changes through a PR.
+  standalone fixes (e.g. T0) may be committed straight to `main`.
+- Every `git push` needs the user's confirmation first.
 - Branch name: `<type>/m<N>-<slug>` (the name is given in the Index).
 - Update the task's status in this file in the commit that finishes it.
 - Tick a milestone's boxes in ROADMAP.md when the milestone's PR merges.
@@ -21,7 +21,7 @@ milestone into tasks. Architecture decisions live in
 
 | ID | Title | Milestone | Depends on | Branch | Status |
 | --- | --- | --- | --- | --- | --- |
-| T0 | Fix CI and M0 leftovers | M0 | — | `chore/m0-ci-fix` | todo |
+| T0 | Fix CI and M0 leftovers | M0 | — | `main` (direct) | todo |
 | T1 | M1 data model design (docs only) | M1 | T0 | `feat/m1-data-layer` | todo |
 | T2 | Domain foundations | M1 | T1 | `feat/m1-data-layer` | todo |
 | T3 | Domain rules | M1 | T2 | `feat/m1-data-layer` | todo |
