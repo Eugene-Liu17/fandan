@@ -205,6 +205,10 @@ Rules:
 - Marking a slot `cooked` without a per-dish answer leaves its dishes `planned`. Only
   the review step (or a per-dish mark) sets `eaten` / `not_eaten`. The app never
   assumes a planned dish was eaten.
+- Marking a slot that holds an unconfirmed draft removes the draft dishes: a
+  draft is not a plan, so it is not kept as history.
+- A new draft never replaces a slot already marked `cooked`, `skipped`, or
+  `ate_out`; drafting is only allowed over an unknown, draft, or planned slot.
 - Dedupe reads `meal_dishes` with status `eaten`, joined to `meals.date`.
 - The number of dishes per meal is the user preference `dishes_per_meal`. Its default
   is derived from household size (1 → 1, 2 → 2, 3–4 → 3, 5 or more → 4) by a pure
@@ -266,7 +270,12 @@ reports unmapped names so the dictionary grows through PRs.
 - Allergen tags: `peanut`, `tree_nut`, `milk`, `egg`, `fish`, `crustacean`, `mollusc`,
   `soy`, `wheat`, `sesame`.
 - Categories (used by diet rules and coarse grouping): `pork`, `beef`, `lamb`,
-  `poultry`, `seafood`, `vegetable`, `legume`, `grain`, `dairy_egg`, `fungus`, ...
+  `poultry`, `fish`, `shellfish`, `egg`, `soy_product`, `vegetable`, `fungus`,
+  `legume`, `grain`, `nut_seed`, `dairy`, `aromatic`, `condiment`. A diet rule
+  such as "no seafood" maps to more than one category (`fish` and
+  `shellfish`).
+- An ambiguous name is attached to the entry that carries allergens (for
+  example 豆芽 maps to soybean sprouts, which are tagged `soy`).
 
 **Restrictions.** Stored in `taste_facts` with `type = restriction`. `content` is what
 the user said; `payload` is one of `{kind: 'allergen', tag}`,

@@ -23,7 +23,7 @@ milestone into tasks. Architecture decisions live in
 | --- | --- | --- | --- | --- | --- |
 | T0 | Fix CI and M0 leftovers | M0 | — | `main` (direct) | done |
 | T1 | M1 data model design (docs only) | M1 | T0 | `feat/m1-data-layer` | done |
-| T2 | Domain foundations | M1 | T1 | `feat/m1-data-layer` | todo |
+| T2 | Domain foundations | M1 | T1 | `feat/m1-data-layer` | done |
 | T3 | Domain rules | M1 | T2 | `feat/m1-data-layer` | todo |
 | T4 | Schema, migrations, seed | M1 | T2 | `feat/m1-data-layer` | todo |
 | T5 | Repositories, services, integration tests | M1 | T3, T4 | `feat/m1-data-layer` | todo |
@@ -121,10 +121,11 @@ diets) is out of MVP; `taste_facts.deleted_at` covers retracting a fact.
 - `defaultDishesPerMeal(householdSize)` (ADR-006).
 
 **Acceptance criteria**
-- [ ] Every exported function has a unit test.
-- [ ] Edge cases from `.claude/rules/domain.md` are covered where
-      relevant (empty pantry, fully eaten-out week, allergy conflict).
-- [ ] `pnpm run check:boundaries` passes.
+- [x] Every exported function has a unit test.
+- [x] Edge cases from `.claude/rules/domain.md` are covered where
+      relevant (fully eaten-out week, hidden allergens in condiments;
+      empty pantry and allergy conflicts are T3 rules).
+- [x] `pnpm run check:boundaries` passes.
 
 **Open questions**: none beyond T1's outcomes.
 
