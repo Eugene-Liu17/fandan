@@ -1,46 +1,39 @@
 /**
- * Pure date-range helpers for the weekly planning domain.
+ * Week ranges over plain calendar dates (ADR-007).
  *
- * Every function here is deterministic: time is always passed in as an
- * argument, never read from `Date.now()` internally. This is what lets
- * `src/domain` stay free of hidden I/O and makes every case reproducible
- * in a unit test. See .claude/rules/domain.md.
+ * The caller supplies "today" as a plain date already resolved in the user's
+ * time zone (see `toPlainDate` in ./date), so nothing here depends on the host
+ * clock or time zone. See .claude/rules/domain.md.
  */
+
+import { addDays, dayOfWeek, type PlainDate } from "./date";
 
 export type WeekStartsOn = 0 | 1; // 0 = Sunday, 1 = Monday
 
 export interface WeekRange {
-  /** Inclusive start of the week, at 00:00:00.000 UTC. */
-  start: Date;
-  /** Exclusive end of the week (start of the following week), UTC. */
-  end: Date;
+  /** First day of the week (inclusive). */
+  start: PlainDate;
+  /** First day of the following week (exclusive). */
+  end: PlainDate;
 }
 
-/**
- * Returns the UTC week that contains `now`, anchored to `weekStartsOn`.
- *
- * The range is [start, end): `start` is the first instant of the week's
- * first day, `end` is the first instant of the following week. Both are
- * always at UTC midnight, regardless of `now`'s time-of-day or the host
- * machine's local timezone.
- */
-export function getWeekRange(now: Date, weekStartsOn: WeekStartsOn): WeekRange {
-  const dayStart = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-  );
-  const currentDay = dayStart.getUTCDay();
-  const offset = (currentDay - weekStartsOn + 7) % 7;
-
-  const start = new Date(dayStart);
-  start.setUTCDate(start.getUTCDate() - offset);
-
-  const end = new Date(start);
-  end.setUTCDate(end.getUTCDate() + 7);
-
-  return { start, end };
+/** Returns the week containing `today`, anchored to `weekStartsOn`. */
+export function getWeekRange(
+  today: PlainDate,
+  weekStartsOn: WeekStartsOn,
+): WeekRange {
+  const offset = (dayOfWeek(today) - weekStartsOn + 7) % 7;
+  const start = addDays(today, -offset);
+  return { start, end: addDays(start, 7) };
 }
 
-/** Returns true when `date` falls within `range` (inclusive start, exclusive end). */
-export function isWithinWeek(date: Date, range: WeekRange): boolean {
+/** The seven dates of `range`, in order. */
+export function weekDates(range: WeekRange): PlainDate[] {
+  return Array.from({ length: 7 }, (_, i) => addDays(range.start, i));
+}
+
+/** True when `date` falls within `range` (inclusive start, exclusive end). */
+export function isWithinWeek(date: PlainDate, range: WeekRange): boolean {
+  // YYYY-MM-DD strings sort chronologically.
   return date >= range.start && date < range.end;
 }

@@ -1,71 +1,76 @@
 import { describe, expect, it } from "vitest";
-import { getWeekRange, isWithinWeek } from "./week";
+import { parsePlainDate } from "./date";
+import { getWeekRange, isWithinWeek, weekDates } from "./week";
+
+const d = parsePlainDate;
 
 describe("getWeekRange", () => {
   it("anchors to Monday when weekStartsOn is 1", () => {
-    // 2026-09-22 is a Tuesday (UTC).
-    const now = new Date("2026-09-22T15:30:00.000Z");
-    const range = getWeekRange(now, 1);
-
-    expect(range.start.toISOString()).toBe("2026-09-21T00:00:00.000Z");
-    expect(range.end.toISOString()).toBe("2026-09-28T00:00:00.000Z");
+    // 2026-09-22 is a Tuesday.
+    expect(getWeekRange(d("2026-09-22"), 1)).toEqual({
+      start: "2026-09-21",
+      end: "2026-09-28",
+    });
   });
 
   it("anchors to Sunday when weekStartsOn is 0", () => {
-    const now = new Date("2026-09-22T15:30:00.000Z");
-    const range = getWeekRange(now, 0);
-
-    expect(range.start.toISOString()).toBe("2026-09-20T00:00:00.000Z");
-    expect(range.end.toISOString()).toBe("2026-09-27T00:00:00.000Z");
+    expect(getWeekRange(d("2026-09-22"), 0)).toEqual({
+      start: "2026-09-20",
+      end: "2026-09-27",
+    });
   });
 
-  it("returns the same day as start when now falls exactly on the anchor day", () => {
+  it("returns today as start when today is the anchor day", () => {
     // 2026-09-21 is a Monday.
-    const now = new Date("2026-09-21T00:00:00.000Z");
-    const range = getWeekRange(now, 1);
-
-    expect(range.start.toISOString()).toBe("2026-09-21T00:00:00.000Z");
+    expect(getWeekRange(d("2026-09-21"), 1).start).toBe("2026-09-21");
   });
 
-  it("crosses a month boundary correctly", () => {
+  it("treats Sunday as the last day of a Monday-start week", () => {
+    expect(getWeekRange(d("2026-09-27"), 1).start).toBe("2026-09-21");
+  });
+
+  it("crosses a month boundary", () => {
     // 2026-10-01 is a Thursday.
-    const now = new Date("2026-10-01T12:00:00.000Z");
-    const range = getWeekRange(now, 1);
-
-    expect(range.start.toISOString()).toBe("2026-09-28T00:00:00.000Z");
-    expect(range.end.toISOString()).toBe("2026-10-05T00:00:00.000Z");
+    expect(getWeekRange(d("2026-10-01"), 1)).toEqual({
+      start: "2026-09-28",
+      end: "2026-10-05",
+    });
   });
 
-  it("crosses a year boundary correctly", () => {
+  it("crosses a year boundary", () => {
     // 2027-01-01 is a Friday.
-    const now = new Date("2027-01-01T08:00:00.000Z");
-    const range = getWeekRange(now, 1);
-
-    expect(range.start.toISOString()).toBe("2026-12-28T00:00:00.000Z");
-    expect(range.end.toISOString()).toBe("2027-01-04T00:00:00.000Z");
+    expect(getWeekRange(d("2027-01-01"), 1)).toEqual({
+      start: "2026-12-28",
+      end: "2027-01-04",
+    });
   });
+});
 
-  it("ignores the host time-of-day component", () => {
-    const morning = getWeekRange(new Date("2026-09-22T00:00:01.000Z"), 1);
-    const night = getWeekRange(new Date("2026-09-22T23:59:59.000Z"), 1);
-
-    expect(morning.start.toISOString()).toBe(night.start.toISOString());
-    expect(morning.end.toISOString()).toBe(night.end.toISOString());
+describe("weekDates", () => {
+  it("lists the seven days in order", () => {
+    const range = getWeekRange(d("2026-12-30"), 1);
+    expect(weekDates(range)).toEqual([
+      "2026-12-28",
+      "2026-12-29",
+      "2026-12-30",
+      "2026-12-31",
+      "2027-01-01",
+      "2027-01-02",
+      "2027-01-03",
+    ]);
   });
 });
 
 describe("isWithinWeek", () => {
-  it("includes the start instant and excludes the end instant", () => {
-    const range = getWeekRange(new Date("2026-09-22T00:00:00.000Z"), 1);
+  const range = getWeekRange(d("2026-09-22"), 1);
 
+  it("includes the start date and excludes the end date", () => {
     expect(isWithinWeek(range.start, range)).toBe(true);
+    expect(isWithinWeek(d("2026-09-27"), range)).toBe(true);
     expect(isWithinWeek(range.end, range)).toBe(false);
   });
 
   it("returns false for a date entirely outside the week", () => {
-    const range = getWeekRange(new Date("2026-09-22T00:00:00.000Z"), 1);
-    const farAway = new Date("2020-01-01T00:00:00.000Z");
-
-    expect(isWithinWeek(farAway, range)).toBe(false);
+    expect(isWithinWeek(d("2020-01-01"), range)).toBe(false);
   });
 });
