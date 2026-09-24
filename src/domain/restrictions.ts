@@ -191,3 +191,119 @@ export function filterByRestrictions<T extends RecipeCandidate>(
   }
   return result;
 }
+
+const MEAT_AND_SEAFOOD: Restriction[] = (
+  ["pork", "beef", "lamb", "poultry", "fish", "shellfish"] as const
+).map((category) => ({ kind: "category", category }));
+
+/**
+ * Words in a stated restriction that name a group rather than one dictionary
+ * entry ("海鲜过敏", "不吃猪肉", "吃素"), plus the short aromatics people
+ * commonly refuse. Matched as substrings of the statement.
+ */
+export const RESTRICTION_KEYWORDS: readonly {
+  terms: readonly string[];
+  restrictions: readonly Restriction[];
+}[] = [
+  { terms: ["花生"], restrictions: [{ kind: "allergen", tag: "peanut" }] },
+  { terms: ["坚果"], restrictions: [{ kind: "allergen", tag: "tree_nut" }] },
+  {
+    terms: ["牛奶", "奶制品", "乳制品", "乳糖"],
+    restrictions: [{ kind: "allergen", tag: "milk" }],
+  },
+  { terms: ["鸡蛋", "蛋类"], restrictions: [{ kind: "allergen", tag: "egg" }] },
+  {
+    terms: ["鱼"],
+    restrictions: [
+      { kind: "allergen", tag: "fish" },
+      { kind: "category", category: "fish" },
+    ],
+  },
+  {
+    terms: ["虾", "蟹", "甲壳"],
+    restrictions: [{ kind: "allergen", tag: "crustacean" }],
+  },
+  {
+    terms: ["贝", "软体", "鱿鱼", "蚝"],
+    restrictions: [{ kind: "allergen", tag: "mollusc" }],
+  },
+  {
+    terms: ["海鲜", "水产"],
+    restrictions: [
+      { kind: "category", category: "fish" },
+      { kind: "category", category: "shellfish" },
+      { kind: "allergen", tag: "fish" },
+      { kind: "allergen", tag: "crustacean" },
+      { kind: "allergen", tag: "mollusc" },
+    ],
+  },
+  {
+    terms: ["大豆", "黄豆", "豆制品"],
+    restrictions: [{ kind: "allergen", tag: "soy" }],
+  },
+  {
+    terms: ["小麦", "麸质", "面筋"],
+    restrictions: [{ kind: "allergen", tag: "wheat" }],
+  },
+  { terms: ["芝麻"], restrictions: [{ kind: "allergen", tag: "sesame" }] },
+  { terms: ["猪"], restrictions: [{ kind: "category", category: "pork" }] },
+  { terms: ["牛肉"], restrictions: [{ kind: "category", category: "beef" }] },
+  { terms: ["羊"], restrictions: [{ kind: "category", category: "lamb" }] },
+  {
+    terms: ["鸡肉", "禽"],
+    restrictions: [{ kind: "category", category: "poultry" }],
+  },
+  { terms: ["吃素", "素食"], restrictions: MEAT_AND_SEAFOOD },
+  {
+    terms: ["葱"],
+    restrictions: [
+      { kind: "ingredient", key: "scallion" },
+      { kind: "ingredient", key: "leek_scallion" },
+    ],
+  },
+  { terms: ["姜"], restrictions: [{ kind: "ingredient", key: "ginger" }] },
+  { terms: ["蒜"], restrictions: [{ kind: "ingredient", key: "garlic" }] },
+];
+
+/** Leading and trailing phrasing around the thing being refused. */
+const STATEMENT_PREFIX = /^我?(不能吃|不吃|不要|不喝|忌口|忌|对)/;
+const STATEMENT_SUFFIX = /(过敏|忌口|不能吃|不吃)$/;
+
+/**
+ * Structured restrictions read from what the user said, e.g. "花生过敏" or
+ * "不吃猪肉". Always keeps the statement (and the statement stripped of
+ * phrasing such as 不吃 / 过敏) as `term` restrictions, then adds every
+ * keyword group and every dictionary name of two or more characters it
+ * mentions. Used when a stored payload is missing or invalid, and for "other
+ * (I'll type it)" answers, so a stated restriction is never dropped.
+ */
+export function restrictionsFromText(text: string): Restriction[] {
+  const statement = normalizeName(text);
+  if (statement.length === 0) return [];
+
+  const found: Restriction[] = [{ kind: "term", text: statement }];
+  const core = statement
+    .replace(STATEMENT_PREFIX, "")
+    .replace(STATEMENT_SUFFIX, "");
+  if (core.length > 0 && core !== statement) {
+    found.push({ kind: "term", text: core });
+  }
+
+  for (const { terms, restrictions } of RESTRICTION_KEYWORDS) {
+    if (terms.some((t) => statement.includes(t))) found.push(...restrictions);
+  }
+  for (const entry of INGREDIENTS) {
+    const mentioned = namesOf(entry).some(
+      (n) => [...n].length >= 2 && statement.includes(normalizeName(n)),
+    );
+    if (mentioned) found.push({ kind: "ingredient", key: entry.key });
+  }
+
+  const seen = new Set<string>();
+  return found.filter((r) => {
+    const id = JSON.stringify(r);
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+}

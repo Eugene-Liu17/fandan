@@ -4,6 +4,7 @@ import {
   findViolations,
   type Restriction,
   restrictionSchema,
+  restrictionsFromText,
 } from "./restrictions";
 import { recipe } from "./testing/fixtures";
 
@@ -166,5 +167,72 @@ describe("restrictionSchema", () => {
         false,
       );
     }
+  });
+});
+
+describe("restrictionsFromText", () => {
+  const excludes = (statement: string, dish: ReturnType<typeof recipe>) =>
+    filterByRestrictions([dish], restrictionsFromText(statement)).excluded
+      .length === 1;
+
+  it("keeps the statement and its core as terms", () => {
+    expect(restrictionsFromText("不吃榴莲").slice(0, 2)).toEqual([
+      { kind: "term", text: "不吃榴莲" },
+      { kind: "term", text: "榴莲" },
+    ]);
+    expect(excludes("不吃榴莲", recipe("a", "榴莲酥", ["榴莲", "面粉"]))).toBe(
+      true,
+    );
+  });
+
+  it("reads an allergy stated in plain words (花生过敏)", () => {
+    expect(restrictionsFromText("花生过敏")).toContainEqual({
+      kind: "allergen",
+      tag: "peanut",
+    });
+    expect(
+      excludes("花生过敏", recipe("a", "宫保鸡丁", ["鸡胸肉", "花生米"])),
+    ).toBe(true);
+    expect(
+      excludes("花生过敏", recipe("b", "凉拌菜", ["黄瓜", "花生油"])),
+    ).toBe(true);
+  });
+
+  it("reads a whole category (不吃猪肉 excludes 五花肉)", () => {
+    expect(
+      excludes("不吃猪肉", recipe("a", "红烧肉", ["五花肉", "冰糖"])),
+    ).toBe(true);
+    expect(excludes("不吃猪肉", recipe("b", "清炒菠菜", ["菠菜"]))).toBe(false);
+  });
+
+  it("reads seafood as fish and shellfish", () => {
+    expect(excludes("海鲜过敏", recipe("a", "白灼虾", ["基围虾"]))).toBe(true);
+    expect(excludes("海鲜过敏", recipe("b", "清蒸鲈鱼", ["鲈鱼"]))).toBe(true);
+    expect(excludes("海鲜过敏", recipe("c", "蒸扇贝", ["扇贝"]))).toBe(true);
+  });
+
+  it("reads vegetarian as no meat or seafood", () => {
+    expect(excludes("我吃素", recipe("a", "可乐鸡翅", ["鸡翅"]))).toBe(true);
+    expect(excludes("我吃素", recipe("b", "清炒菠菜", ["菠菜", "蒜"]))).toBe(
+      false,
+    );
+  });
+
+  it("reads dictionary names and short aromatics", () => {
+    expect(restrictionsFromText("不要香菜")).toContainEqual({
+      kind: "ingredient",
+      key: "cilantro",
+    });
+    expect(excludes("不吃葱", recipe("a", "葱油拌面", ["面条", "小葱"]))).toBe(
+      true,
+    );
+  });
+
+  it("returns nothing for a blank statement and never duplicates", () => {
+    expect(restrictionsFromText("   ")).toEqual([]);
+    const found = restrictionsFromText("海鲜海鲜过敏").map((r) =>
+      JSON.stringify(r),
+    );
+    expect(new Set(found).size).toBe(found.length);
   });
 });
