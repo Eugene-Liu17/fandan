@@ -45,6 +45,22 @@ module.exports = {
       to: { path: "^src/server/db" },
     },
     {
+      name: "db-no-services",
+      comment:
+        "server/db sits below server/services; it must not import upward.",
+      severity: "error",
+      from: { path: "^src/server/db" },
+      to: { path: "^src/server/services" },
+    },
+    {
+      name: "testing-only-from-tests",
+      comment:
+        "Test helpers (e.g. resetDatabase, which truncates every table) may only be imported by tests and other test helpers.",
+      severity: "error",
+      from: { pathNot: "(\\.test\\.ts$|/testing/)" },
+      to: { path: "^src/(server|domain)/testing/" },
+    },
+    {
       name: "no-circular",
       comment: "Circular dependencies make the layering above unverifiable.",
       severity: "error",
