@@ -27,9 +27,15 @@ milestone into tasks. Architecture decisions live in
 | T3 | Domain rules | M1 | T2 | `feat/m1-data-layer` | done |
 | T4 | Schema, migrations, seed | M1 | T2 | `feat/m1-data-layer` | done |
 | T5 | Repositories, services, integration tests | M1 | T3, T4 | `feat/m1-data-layer` | done |
+| T6 | Restriction filter hardening | M1 follow-up | T5 | `fix/m1-review` | in progress |
+| T7 | Engineering cleanup | M1 follow-up | T5 | `fix/m1-review` | in progress |
+| T8 | Slot write safety | M3 | T7 | `feat/m3-calendar` | todo |
+| T9 | Services API for M3/M4 | M3 | T8 | `feat/m3-calendar` | todo |
+| T10 | Traditional Chinese normalization | Before phase 2 | T6 | TBD | todo |
 
 T1–T5 share one branch, so they run in order; T3 and T4 do not depend on
-each other.
+each other. T6–T10 come from the post-M1 review (2026-09-24); the review
+item numbers (M1–M6, S1–S8) are quoted in each task.
 
 ---
 
@@ -219,3 +225,127 @@ call, tested against a real Postgres.
 **Open questions**: none. Decided: planned dishes elsewhere in the week
 are not dedupe history; M4's draft composer avoids repeats within a menu
 (ADR-006, ROADMAP M4).
+
+---
+
+## T6 — Restriction filter hardening
+
+**Goal**: close the allergy/restriction leaks the post-M1 review reproduced
+(review items M1–M4). Core principle 3 is the one rule that must not leak.
+
+**Scope**
+- Recipes with any ingredient that does not resolve to the dictionary are
+  quarantined: not a candidate for anyone until mapped (exclusion reason
+  `unmapped_ingredient`). Recorded in ADR-008.
+- Dictionary entries for common cuts and processed meats (肥牛, 牛排, 毛肚,
+  火腿, 火腿肠, 培根, 叉烧, 午餐肉, bare 肉丝/肉丁/肉块 as pork), 馄饨皮,
+  XO酱; conservative allergen tags on 鸡精, 辣椒油, 腊肠, 豆豉.
+- Category search terms with exclusions (牛 but not 牛奶/牛油果/牛蛙 …,
+  鸡 but not 鸡蛋 …).
+- `restrictionsFromText` understands 牛羊肉, 鸡, 奶, 蛋, 豆类, 红肉, 肉/荤,
+  蛋奶素, 纯素 without turning 不吃猪肉 into "no meat".
+- A stored restriction applies its payload **and** its wording.
+
+**Acceptance criteria**
+- [ ] A table-driven test of 30+ real statements and ingredient spellings,
+      each excluded, plus counter-cases that must stay allowed.
+- [ ] Every leak reproduced by the review is blocked (re-run of the review's
+      reproduction cases).
+- [ ] A restriction with a `term` payload of 不吃猪肉和海鲜 excludes 红烧肉.
+- [ ] Recipes with unmapped ingredients never reach the ranked list; tests
+      cover it.
+
+**Open questions**: none.
+
+---
+
+## T7 — Engineering cleanup
+
+**Goal**: fix the review's engineering findings (S7, S8, optional items 1–7
+and 9) while they are cheap.
+
+**Scope**
+- `events.seq` identity column (migration 0003) so events order reliably
+  within a transaction; constraint tests assert constraint names.
+- CI: fail when a committed migration is modified, renamed or deleted; run
+  `db:seed` twice. Stop hook runs `pnpm run typecheck`.
+- Remove unused `DEDUPE_WINDOW_DAYS`, `isOneOf`, `isWithinWeek`; share the
+  slot view, date schema and week-start helpers across services; remove dead
+  code.
+- dependency-cruiser: domain may not import Node core modules.
+- Seed refuses to run against a non-local database.
+- SPEC documents the dedupe window as |Δdays| < N.
+
+**Acceptance criteria**
+- [ ] CI fails on an edited migration (verified by reasoning about the diff
+      filter and a local dry run) and runs the seed twice.
+- [ ] All checks pass; coverage thresholds hold.
+
+**Open questions**: none.
+
+---
+
+## T8 — Slot write safety
+
+**Goal**: make slot writes safe before M3 adds more of them (review items M5,
+M6, S5).
+
+**Scope**
+- `generateDraft` refuses a slot that has any `eaten` / `not_eaten` dish;
+  marking a dish eaten in a `planned` slot promotes the slot to `cooked`.
+  Recorded in ADR-006.
+- Every slot write serializes per user (lock the `users` row `for no key
+  update`), and `markDish` locks its parent slot.
+- `meal_dishes (meal_id, user_id)` references `meals (id, user_id)` so a dish
+  cannot belong to another user's slot.
+
+**Acceptance criteria**
+- [ ] Concurrent `logEatOut` and `markSkipped` on an empty slot end in a state
+      reachable by running them one after the other; a skipped slot never
+      holds an eaten dish.
+- [ ] Drafting over a reviewed slot is refused (domain and service tests).
+- [ ] Inserting a dish whose `user_id` differs from its slot's fails.
+
+**Open questions**: none.
+
+---
+
+## T9 — Services API for M3/M4
+
+**Goal**: settle the services API before the calendar (M3) and the AI tools
+(M4) build on it (review items S1–S3).
+
+**Scope**
+- Record an unplanned home-cooked dish (`markCooked` with dishes, snapshot
+  name and features) so it counts for dedupe.
+- One signature shape `(userId, input, deps?)` with exported Zod input
+  schemas; `ServiceError` gains a machine-readable `reason`; user ids are
+  validated before querying.
+- `getCandidates` returns a compact exclusion list (id, name, reason);
+  `markDish` returns the updated slot view.
+
+**Acceptance criteria**
+- [ ] A dish cooked at home without a plan is excluded by dedupe the next day
+      (integration test).
+- [ ] Every public service exports its input schema; error codes and reasons
+      are documented.
+
+**Open questions**: undo a mark, remove a dish and notes are designed with
+the M3 UI, not ahead of it.
+
+---
+
+## T10 — Traditional Chinese normalization
+
+**Goal**: phase-2 users often type Traditional Chinese (review item S6).
+
+**Scope**
+- A reviewed, ingredient-focused Traditional → Simplified character table
+  applied in `normalizeName`, keeping the domain pure.
+
+**Acceptance criteria**
+- [ ] 對蝦過敏 and 不吃豬肉 filter correctly; a pantry item 雞蛋 maps to egg.
+- [ ] The character table has its own tests.
+
+**Open questions**: none.
+
