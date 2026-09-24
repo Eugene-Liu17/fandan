@@ -26,7 +26,7 @@ milestone into tasks. Architecture decisions live in
 | T2 | Domain foundations | M1 | T1 | `feat/m1-data-layer` | done |
 | T3 | Domain rules | M1 | T2 | `feat/m1-data-layer` | done |
 | T4 | Schema, migrations, seed | M1 | T2 | `feat/m1-data-layer` | done |
-| T5 | Repositories, services, integration tests | M1 | T3, T4 | `feat/m1-data-layer` | todo |
+| T5 | Repositories, services, integration tests | M1 | T3, T4 | `feat/m1-data-layer` | done |
 
 T1–T5 share one branch, so they run in order; T3 and T4 do not depend on
 each other.
@@ -199,9 +199,9 @@ call, tested against a real Postgres.
 
 **Scope**
 - Repositories in `src/server/db/`; services in `src/server/services/`
-  orchestrating domain + repositories. Initial set: `getWeekContext`,
-  `markMeal`, `logEatOut`, `addPantryItems`, `computeShoppingList`,
-  `getCandidates`.
+  orchestrating domain + repositories: `getWeekContext`, `markSlot`,
+  `logEatOut`, `markDish`, `addPantryItems`, `removePantryItem`,
+  `getShoppingList`, `getCandidates`.
 - Every write that changes user state also appends an `events` row.
 - Integration tests in the vitest `server` project: separate test
   database, migrated before the run, tables cleared between cases.
@@ -209,10 +209,15 @@ call, tested against a real Postgres.
   before tests; replace the placeholder `DATABASE_URL` in `ci.yml`.
 
 **Acceptance criteria**
-- [ ] After `markMeal`, `getWeekContext` returns the new state (SPEC:
+- [x] After `markSlot`, `getWeekContext` returns the new state (SPEC:
       calendar edits are visible to the next chat turn).
-- [ ] A two-user test proves queries are isolated by `user_id`.
-- [ ] `spec-reviewer` has been run on the branch.
-- [ ] M1 boxes ticked in ROADMAP.md (in the PR for `feat/m1-data-layer`).
+- [x] A two-user test proves queries are isolated by `user_id`.
+- [x] `spec-reviewer` has been run on the branch; its correctness
+      findings are fixed (see the PR for the list).
+- [x] M1 boxes ticked in ROADMAP.md (in the PR for `feat/m1-data-layer`).
 
-**Open questions**: none beyond earlier tasks.
+**Open questions**
+- Decide before M4: should confirmed (`planned`) dishes elsewhere in the
+  dedupe window count as repeats when generating or swapping a dish, or
+  is that left to M4's draft composer? Today dedupe reads only `eaten`
+  dishes (ADR-006).

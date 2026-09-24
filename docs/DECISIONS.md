@@ -201,7 +201,14 @@ Rules:
 
 - Marking a slot `ate_out` sets its planned dishes to `not_eaten` (kept as history)
   and adds the dishes eaten out as `eaten` rows. A dish name is optional; a row with
-  no name contributes nothing to dedupe.
+  no name contributes nothing to dedupe. A dish eaten out carries `features` (given
+  by the caller, e.g. labeled by the parsing model, or copied from a library recipe
+  of the same name) so the main-ingredient + flavor rule applies to it too; its
+  `recipe_id` stays null.
+- Marking a slot `skipped` means nothing in it was eaten: planned and eaten dishes
+  both become `not_eaten`, and a dish in a skipped slot cannot be marked eaten
+  until the slot is re-marked. A rating is cleared whenever a dish stops being
+  eaten.
 - Marking a slot `cooked` without a per-dish answer leaves its dishes `planned`. Only
   the review step (or a per-dish mark) sets `eaten` / `not_eaten`. The app never
   assumes a planned dish was eaten.
@@ -285,7 +292,11 @@ the user said; `payload` is one of `{kind: 'allergen', tag}`,
 ingredient matches a restriction by tag, category, or key, **or** if the raw
 ingredient name contains the restriction's term or one of its aliases as a substring.
 Free text that cannot be mapped to the dictionary becomes a `term` restriction and is
-never dropped.
+never dropped. `restrictionsFromText` reads a statement such as 花生过敏, 不吃猪肉,
+海鲜过敏 or 吃素 into structured restrictions (keyword groups plus dictionary names
+of two or more characters) while keeping the statement itself as terms. It is used
+for "other (I'll type it)" answers and whenever a stored payload fails to parse. The
+database requires a payload on every restriction fact (migration 0002).
 
 Two further safety nets, both in `src/domain/restrictions.ts`:
 
