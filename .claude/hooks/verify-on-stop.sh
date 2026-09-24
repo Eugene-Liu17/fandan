@@ -33,7 +33,9 @@ if [ -z "$CHANGED" ]; then
 fi
 
 # 4. Typecheck first — cheapest signal, and the one most likely to fail.
-TSC_OUTPUT=$(pnpm exec tsc --noEmit 2>&1)
+# The script generates Next's route types first (bare tsc fails on a fresh
+# clone without .next; see T0 in docs/TASKS.md).
+TSC_OUTPUT=$(pnpm run typecheck 2>&1)
 TSC_EXIT=$?
 if [ "$TSC_EXIT" -ne 0 ]; then
   jq -n --arg reason "Typecheck failed. Fix these errors before stopping:

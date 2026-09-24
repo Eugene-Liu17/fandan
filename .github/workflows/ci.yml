@@ -33,6 +33,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Full history, so the migration check can diff against main.
+          fetch-depth: 0
 
       - uses: pnpm/setup@v3
         with:
@@ -50,8 +53,23 @@ jobs:
       - name: Check layer boundaries
         run: pnpm run check:boundaries
 
+      - name: Committed migrations are never edited
+        run: |
+          # Drizzle does not re-check applied files, so an edited migration
+          # would silently diverge from every database that already ran it.
+          base=$(git merge-base origin/main HEAD)
+          changed=$(git diff --name-only --diff-filter=MDR "$base" HEAD -- 'src/server/db/migrations/*.sql')
+          if [ -n "$changed" ]; then
+            echo "::error::Committed migrations were modified, renamed or deleted. Add a new migration instead."
+            echo "$changed"
+            exit 1
+          fi
+
       - name: Apply migrations
         run: pnpm run db:migrate
+
+      - name: Seed twice (the seed must stay repeatable)
+        run: pnpm run db:seed && pnpm run db:seed
 
       - name: Check the schema matches the migrations
         run: |
