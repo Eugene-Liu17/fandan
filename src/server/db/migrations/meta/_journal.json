@@ -8,6 +8,13 @@
       "when": 1790091930780,
       "tag": "0000_enable_pgcrypto",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790264551545,
+      "tag": "0001_m1_core_tables",
+      "breakpoints": true
     }
   ]
 }
