@@ -216,7 +216,10 @@ Rules:
   draft is not a plan, so it is not kept as history.
 - A new draft never replaces a slot already marked `cooked`, `skipped`, or
   `ate_out`; drafting is only allowed over an unknown, draft, or planned slot.
-- Dedupe reads `meal_dishes` with status `eaten`, joined to `meals.date`.
+- Dedupe reads `meal_dishes` with status `eaten`, joined to `meals.date`. Planned
+  and draft dishes do not count as repeats there; keeping a week's menu free of
+  repeats among its own planned and draft dishes is the job of M4's draft
+  composer (decided 2026-09-24).
 - The number of dishes per meal is the user preference `dishes_per_meal`. Its default
   is derived from household size (1 → 1, 2 → 2, 3–4 → 3, 5 or more → 4) by a pure
   function in `src/domain`.

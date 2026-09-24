@@ -61,7 +61,9 @@ for the standard workflow.
   - parse free text into pantry items
   - log a meal
   - search candidate dishes
-  - generate a menu draft (writes `draft` status)
+  - generate a menu draft (writes `draft` status); the composer avoids
+    repeating a dish or a main ingredient + flavor already planned or
+    drafted elsewhere in the dedupe window (ADR-006)
   - revise a draft
   - confirm a draft
   - multiple-choice question (client-side interactive tool, single and

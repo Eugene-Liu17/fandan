@@ -216,8 +216,6 @@ call, tested against a real Postgres.
       findings are fixed (see the PR for the list).
 - [x] M1 boxes ticked in ROADMAP.md (in the PR for `feat/m1-data-layer`).
 
-**Open questions**
-- Decide before M4: should confirmed (`planned`) dishes elsewhere in the
-  dedupe window count as repeats when generating or swapping a dish, or
-  is that left to M4's draft composer? Today dedupe reads only `eaten`
-  dishes (ADR-006).
+**Open questions**: none. Decided: planned dishes elsewhere in the week
+are not dedupe history; M4's draft composer avoids repeats within a menu
+(ADR-006, ROADMAP M4).
