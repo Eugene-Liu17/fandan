@@ -127,12 +127,13 @@ describe("getWeekContext", () => {
     const ctx = await getWeekContext(user.id, { now: lateEveningToronto });
     expect(ctx.user.dishesPerMeal).toBe(3);
     expect(ctx.pantry.map((p) => p.rawName)).toEqual(["鸡蛋"]);
-    expect(ctx.restrictions.map((r) => r.restrictions)).toEqual([
-      [{ kind: "allergen", tag: "peanut" }],
-      [
-        { kind: "term", text: "不吃榴莲" },
-        { kind: "term", text: "榴莲" },
-      ],
+    const [peanut, durian] = ctx.restrictions.map((r) => r.restrictions);
+    // The stored payload comes first, then what the wording adds.
+    expect(peanut?.[0]).toEqual({ kind: "allergen", tag: "peanut" });
+    expect(peanut).toContainEqual({ kind: "term", text: "花生过敏" });
+    expect(durian).toEqual([
+      { kind: "term", text: "不吃榴莲" },
+      { kind: "term", text: "榴莲" },
     ]);
     expect(ctx.preferences.map((p) => p.content)).toEqual(["喜欢酸辣"]);
   });
