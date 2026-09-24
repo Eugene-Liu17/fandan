@@ -48,3 +48,14 @@ export function resolveIngredientKey(ingredient: {
   const normalized = normalizeIngredient(ingredient.raw_name);
   return normalized.kind === "mapped" ? normalized.key : null;
 }
+
+/**
+ * Raw names of the ingredients that do not resolve to the dictionary. A
+ * recipe with any is quarantined: allergy filtering cannot vouch for an
+ * ingredient it does not know (ADR-008).
+ */
+export function unmappedIngredients(recipe: RecipeCandidate): string[] {
+  return recipe.ingredients
+    .filter((i) => resolveIngredientKey(i) === null)
+    .map((i) => i.raw_name);
+}

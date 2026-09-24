@@ -1,8 +1,9 @@
 /**
  * Candidate dish ranking for a menu slot.
  *
- * Hard filters run first and cannot be outweighed by any score: restrictions
- * (allergies and diet rules), then dedupe. Only the survivors are scored.
+ * Hard filters run first and cannot be outweighed by any score: the
+ * unmapped-ingredient quarantine, restrictions (allergies and diet rules),
+ * then dedupe. Only the survivors are scored.
  * Composing a meal (one meat, one vegetable, one soup) is draft generation,
  * not ranking.
  */
@@ -11,7 +12,11 @@ import type { PlainDate } from "./date";
 import { dedupeCandidates, type EatenDish, type Repeat } from "./dedupe";
 import { isStandardCondiment } from "./ingredients/condiments";
 import { normalizeIngredient, normalizeName } from "./ingredients/normalize";
-import { type RecipeCandidate, resolveIngredientKey } from "./recipe";
+import {
+  type RecipeCandidate,
+  resolveIngredientKey,
+  unmappedIngredients,
+} from "./recipe";
 import {
   filterByRestrictions,
   type Restriction,
@@ -62,6 +67,7 @@ export interface RankedCandidate<T extends RecipeCandidate> {
 }
 
 export type Exclusion<T extends RecipeCandidate> =
+  | { recipe: T; reason: "unmapped_ingredient"; ingredients: string[] }
   | { recipe: T; reason: "restriction"; violations: Violation[] }
   | { recipe: T; reason: "repeat"; repeat: Repeat };
 
@@ -132,7 +138,23 @@ export function matchesCraving(
 export function rankCandidates<T extends RecipeCandidate>(
   input: RankInput<T>,
 ): RankResult<T> {
-  const restricted = filterByRestrictions(input.recipes, input.restrictions);
+  // Quarantine first: a recipe with an ingredient the dictionary does not
+  // know cannot be vouched for by the allergy filter, for any user.
+  const quarantined: Exclusion<T>[] = [];
+  const mapped: T[] = [];
+  for (const recipe of input.recipes) {
+    const unknown = unmappedIngredients(recipe);
+    if (unknown.length === 0) mapped.push(recipe);
+    else {
+      quarantined.push({
+        recipe,
+        reason: "unmapped_ingredient",
+        ingredients: unknown,
+      });
+    }
+  }
+
+  const restricted = filterByRestrictions(mapped, input.restrictions);
   const deduped = dedupeCandidates(
     restricted.allowed,
     input.targetDate,
@@ -168,6 +190,7 @@ export function rankCandidates<T extends RecipeCandidate>(
   return {
     ranked,
     excluded: [
+      ...quarantined,
       ...restricted.excluded.map(({ recipe, violations }) => ({
         recipe,
         reason: "restriction" as const,
