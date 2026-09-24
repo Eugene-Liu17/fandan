@@ -1,8 +1,6 @@
 import { z } from "zod";
-import { isPlainDate, type PlainDate } from "@/domain/date";
 import { MEAL_SLOTS } from "@/domain/enums";
 import { type RecipeFeatures, recipeFeaturesSchema } from "@/domain/features";
-import { normalizeName } from "@/domain/ingredients/normalize";
 import {
   applyDishAction,
   applySlotAction,
@@ -15,7 +13,6 @@ import type { DbExecutor } from "@/server/db/repositories/executor";
 import {
   type DishRow,
   deleteDishes,
-  deleteSlot,
   findDishWithSlot,
   insertDishes,
   lockSlot,
@@ -25,16 +22,12 @@ import {
 import { findVisibleRecipesByNames } from "@/server/db/repositories/recipes";
 import { requireUser } from "./context";
 import { parseInput, ServiceError } from "./errors";
-import type { SlotView } from "./week-context";
-
-const plainDate = z
-  .string()
-  .refine(isPlainDate, { message: "Expected a YYYY-MM-DD date" })
-  .transform((s) => s as PlainDate);
+import { plainDateSchema } from "./schemas";
+import { type SlotView, toSlotView } from "./views";
 
 export const markSlotInputSchema = z
   .object({
-    date: plainDate,
+    date: plainDateSchema,
     slot: z.enum(MEAL_SLOTS),
     action: z.enum(["markCooked", "markSkipped", "markAteOut"]),
     /**
@@ -58,36 +51,10 @@ export const markSlotInputSchema = z
 
 export type MarkSlotInput = z.input<typeof markSlotInputSchema>;
 
-function toSlotView(
-  slot: SlotView["slot"],
-  meal: { id: string; status: SlotView["state"]; note: string | null } | null,
-  dishes: DishRow[],
-): SlotView {
-  return {
-    slot,
-    state: meal?.status ?? "unknown",
-    mealId: meal?.id ?? null,
-    note: meal?.note ?? null,
-    dishes: dishes.map((d) => ({
-      id: d.id,
-      position: d.position,
-      recipeId: d.recipeId,
-      dishName: d.dishName,
-      status: d.status,
-      rating: d.rating,
-      features: d.features,
-    })),
-  };
-}
-
-/**
- * Marks a meal slot cooked / skipped / eaten out, from the calendar or the
- * chat alike. Applies the ADR-006 rules through the domain state machine,
- * then records a `slot_marked` event in the same transaction.
- */
 /**
  * Features for dishes eaten out: the given ones, else those of a visible
- * library recipe with the same name, else null (no main-ingredient dedupe).
+ * library recipe with exactly the same (trimmed) name, else null (no
+ * main-ingredient dedupe).
  */
 async function eatenOutFeatures(
   ex: DbExecutor,
@@ -98,13 +65,15 @@ async function eatenOutFeatures(
   const library = await findVisibleRecipesByNames(ex, userId, unlabeled);
   return dishes.map(
     (d) =>
-      d.features ??
-      library.find((r) => normalizeName(r.name) === normalizeName(d.name))
-        ?.features ??
-      null,
+      d.features ?? library.find((r) => r.name === d.name)?.features ?? null,
   );
 }
 
+/**
+ * Marks a meal slot cooked / skipped / eaten out, from the calendar or the
+ * chat alike. Applies the ADR-006 rules through the domain state machine,
+ * then records a `slot_marked` event in the same transaction.
+ */
 export async function markSlot(
   userId: string,
   input: MarkSlotInput,
@@ -131,16 +100,8 @@ export async function markSlot(
     if (!result.ok) throw new ServiceError("invalid_transition", result.reason);
 
     if (result.slot === "unknown") {
-      // Not reachable for marks today; kept so every outcome is persisted.
-      if (existing) await deleteSlot(tx, userId, existing.meal.id);
-      await appendEvent(tx, userId, "slot_marked", {
-        date,
-        slot,
-        action,
-        from,
-        to: result.slot,
-      });
-      return toSlotView(slot, null, []);
+      // Only discarding a draft clears a slot, and that is not a mark.
+      throw new Error(`markSlot: ${action} cannot clear a slot`);
     }
 
     const meal = await upsertSlotStatus(tx, userId, date, slot, result.slot);

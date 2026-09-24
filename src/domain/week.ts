@@ -31,9 +31,3 @@ export function getWeekRange(
 export function weekDates(range: WeekRange): PlainDate[] {
   return Array.from({ length: 7 }, (_, i) => addDays(range.start, i));
 }
-
-/** True when `date` falls within `range` (inclusive start, exclusive end). */
-export function isWithinWeek(date: PlainDate, range: WeekRange): boolean {
-  // YYYY-MM-DD strings sort chronologically.
-  return date >= range.start && date < range.end;
-}

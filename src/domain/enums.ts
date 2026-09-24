@@ -62,11 +62,3 @@ export const EVENT_TYPES = [
   "unmet_request",
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
-
-/** Type guard: true when `value` is one of the members of `list`. */
-export function isOneOf<const T extends readonly string[]>(
-  list: T,
-  value: unknown,
-): value is T[number] {
-  return typeof value === "string" && list.includes(value);
-}

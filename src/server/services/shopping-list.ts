@@ -5,7 +5,7 @@ import { db } from "@/server/db/client";
 import { findPlannedRecipeIds } from "@/server/db/repositories/meals";
 import { findActivePantry } from "@/server/db/repositories/pantry";
 import { findVisibleRecipesByIds } from "@/server/db/repositories/recipes";
-import { optionalDate, requireUser, todayFor } from "./context";
+import { optionalDate, requireUser, todayFor, weekStartsOnOf } from "./context";
 
 export interface ShoppingList {
   /** First day covered: the week's first day, or today if that is later. */
@@ -30,7 +30,7 @@ export async function getShoppingList(
   const today = todayFor(user, now);
   const { start, end } = getWeekRange(
     optionalDate(weekOf) ?? today,
-    user.weekStartsOn === 0 ? 0 : 1,
+    weekStartsOnOf(user),
   );
   const from = today > start ? today : start;
 

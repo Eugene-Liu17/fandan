@@ -23,6 +23,11 @@ export async function requireUser(
   return user;
 }
 
+/** The user's week start as the domain type (the column is a checked smallint). */
+export function weekStartsOnOf(user: UserRow): 0 | 1 {
+  return user.weekStartsOn === 0 ? 0 : 1;
+}
+
 /** The user's current local date (ADR-007). */
 export function todayFor(user: UserRow, now: Date): PlainDate {
   return toPlainDate(now, user.timezone);
