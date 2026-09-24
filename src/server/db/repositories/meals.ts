@@ -113,14 +113,16 @@ export async function deleteSlot(
     .where(and(eq(meals.userId, userId), eq(meals.id, mealId)));
 }
 
-export async function findDish(
+/** A dish with the status of the slot it belongs to. */
+export async function findDishWithSlot(
   ex: DbExecutor,
   userId: string,
   dishId: string,
-): Promise<DishRow | undefined> {
+): Promise<{ dish: DishRow; slotStatus: SlotStatus } | undefined> {
   const [row] = await ex
-    .select()
+    .select({ dish: mealDishes, slotStatus: meals.status })
     .from(mealDishes)
+    .innerJoin(meals, eq(meals.id, mealDishes.mealId))
     .where(and(eq(mealDishes.userId, userId), eq(mealDishes.id, dishId)))
     .limit(1);
   return row;
@@ -188,7 +190,11 @@ export async function findEatenDishes(
   return rows.map((r) => ({ ...r, date: r.date as PlainDate }));
 }
 
-/** Recipe ids of planned dishes dated in [start, endExclusive). */
+/**
+ * Recipe ids of planned dishes in slots that are still planned, dated in
+ * [start, endExclusive). A slot marked cooked keeps its dishes `planned`
+ * (never assumed eaten), but its ingredients are no longer needed.
+ */
 export async function findPlannedRecipeIds(
   ex: DbExecutor,
   userId: string,
@@ -203,6 +209,7 @@ export async function findPlannedRecipeIds(
       and(
         eq(mealDishes.userId, userId),
         eq(mealDishes.status, "planned"),
+        eq(meals.status, "planned"),
         isNotNull(mealDishes.recipeId),
         gte(meals.date, start),
         lt(meals.date, endExclusive),

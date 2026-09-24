@@ -5,6 +5,7 @@ import { db } from "@/server/db/client";
 import { tasteFacts } from "@/server/db/schema";
 import { createRecipe, createSlot, createUser } from "@/server/testing/db";
 import { getCandidates } from "./candidates";
+import { logEatOut } from "./meals";
 import { addPantryItems } from "./pantry";
 
 const features = (patch: Partial<RecipeFeatures>): RecipeFeatures => ({
@@ -44,22 +45,67 @@ describe("getCandidates", () => {
     ]);
   });
 
-  it("still filters a restriction whose stored payload is invalid", async () => {
+  it("reads a restriction from its wording when the stored payload is invalid", async () => {
     const user = await createUser();
+    await createRecipe("宫保鸡丁", ["鸡胸肉", "花生米"]);
     await createRecipe("榴莲酥", ["榴莲", "面粉"]);
-    await db.insert(tasteFacts).values({
-      userId: user.id,
-      type: "restriction",
-      content: "榴莲",
-      payload: { kind: "not-a-kind" },
-      source: "stated",
-    });
+    await createRecipe("清炒菠菜", ["菠菜"]);
+    await db.insert(tasteFacts).values([
+      {
+        userId: user.id,
+        type: "restriction",
+        content: "花生过敏",
+        payload: {},
+        source: "stated",
+      },
+      {
+        userId: user.id,
+        type: "restriction",
+        content: "不吃榴莲",
+        payload: { kind: "not-a-kind" },
+        source: "stated",
+      },
+    ]);
     const result = await getCandidates(
       user.id,
       { targetDate: target },
       noJitter,
     );
-    expect(result.ranked).toEqual([]);
+    expect(result.ranked.map((c) => c.recipe.name)).toEqual(["清炒菠菜"]);
+  });
+
+  it("applies main-ingredient + flavor dedupe to a dish logged as eaten out", async () => {
+    const user = await createUser({ dedupeWindowDays: 7 });
+    const braised = features({
+      main_ingredient: "pork_belly",
+      flavor: "soy_braised",
+    });
+    await createRecipe("红烧肉", ["五花肉"], { features: braised });
+    await createRecipe("东坡肉", ["五花肉"], { features: braised });
+    await createRecipe("清炒菠菜", ["菠菜"]);
+    await logEatOut(user.id, {
+      date: "2026-09-24",
+      slot: "lunch",
+      dishes: [{ name: "红烧肉" }],
+    });
+
+    const result = await getCandidates(
+      user.id,
+      { targetDate: target },
+      noJitter,
+    );
+    expect(result.ranked.map((c) => c.recipe.name)).toEqual(["清炒菠菜"]);
+    expect(
+      result.excluded
+        .map((e) => [
+          e.recipe.name,
+          e.reason === "repeat" ? e.repeat.reason : e.reason,
+        ])
+        .sort(),
+    ).toEqual([
+      ["东坡肉", "same_main_and_flavor"],
+      ["红烧肉", "same_dish"],
+    ]);
   });
 
   it("excludes dishes eaten recently, at home or out, using the user's window", async () => {

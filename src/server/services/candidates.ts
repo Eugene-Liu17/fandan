@@ -7,7 +7,7 @@ import { findEatenDishes } from "@/server/db/repositories/meals";
 import { findActivePantry } from "@/server/db/repositories/pantry";
 import { findVisibleRecipes } from "@/server/db/repositories/recipes";
 import { findActiveTasteFacts } from "@/server/db/repositories/taste-facts";
-import { requireUser, restrictionOf } from "./context";
+import { requireUser, restrictionsOf } from "./context";
 import { parseInput } from "./errors";
 
 /**
@@ -61,7 +61,7 @@ export async function getCandidates(
     targetDate,
     restrictions: facts
       .filter((f) => f.type === "restriction")
-      .map(restrictionOf),
+      .flatMap(restrictionsOf),
     history,
     windowDays,
     pantry: pantry.map((p) => ({

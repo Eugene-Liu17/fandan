@@ -25,6 +25,20 @@ export async function findVisibleRecipes(
     .orderBy(asc(recipes.name));
 }
 
+/** Visible recipes whose name is exactly one of `names`. */
+export async function findVisibleRecipesByNames(
+  ex: DbExecutor,
+  userId: string,
+  names: string[],
+): Promise<RecipeCandidate[]> {
+  if (names.length === 0) return [];
+  return ex
+    .select(candidateColumns)
+    .from(recipes)
+    .where(and(visibleTo(userId), inArray(recipes.name, names)))
+    .orderBy(asc(recipes.name));
+}
+
 export async function findVisibleRecipesByIds(
   ex: DbExecutor,
   userId: string,

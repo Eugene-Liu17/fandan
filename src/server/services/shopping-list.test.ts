@@ -47,6 +47,40 @@ describe("getShoppingList", () => {
     );
   });
 
+  it("covers a menu confirmed before its week starts", async () => {
+    const user = await createUser();
+    const r = await createRecipe("红烧肉", ["五花肉"]);
+    // Sunday evening, planning the week that starts tomorrow.
+    const sunday = new Date("2026-09-27T22:00:00.000Z");
+    await createSlot(
+      user.id,
+      parsePlainDate("2026-09-29"),
+      "dinner",
+      "planned",
+      [{ recipeId: r.id, dishName: "红烧肉", status: "planned" }],
+    );
+    const list = await getShoppingList(user.id, {
+      now: sunday,
+      weekOf: "2026-09-28",
+    });
+    expect(list.from).toBe("2026-09-28");
+    expect(list.until).toBe("2026-10-05");
+    expect(list.items.map((i) => i.name)).toEqual(["五花肉"]);
+  });
+
+  it("drops dishes in a slot already marked cooked (still `planned`, never assumed eaten)", async () => {
+    const user = await createUser();
+    const r = await createRecipe("红烧肉", ["五花肉"]);
+    await createSlot(
+      user.id,
+      parsePlainDate("2026-09-24"),
+      "dinner",
+      "cooked",
+      [{ recipeId: r.id, dishName: "红烧肉", status: "planned" }],
+    );
+    expect((await getShoppingList(user.id, { now })).items).toEqual([]);
+  });
+
   it("ignores past days, other weeks, drafts, and dishes already eaten", async () => {
     const user = await createUser();
     const r = await createRecipe("红烧肉", ["五花肉"]);

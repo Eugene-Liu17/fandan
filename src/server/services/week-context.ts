@@ -13,7 +13,7 @@ import {
 } from "@/server/db/repositories/meals";
 import { findActivePantry } from "@/server/db/repositories/pantry";
 import { findActiveTasteFacts } from "@/server/db/repositories/taste-facts";
-import { requireUser, restrictionOf, todayFor } from "./context";
+import { optionalDate, requireUser, restrictionsOf, todayFor } from "./context";
 
 export interface DishView {
   id: string;
@@ -60,7 +60,7 @@ export interface WeekContext {
     ingredientKey: string | null;
     quantity: string | null;
   }[];
-  restrictions: { id: string; content: string; restriction: Restriction }[];
+  restrictions: { id: string; content: string; restrictions: Restriction[] }[];
   preferences: { id: string; type: string; content: string }[];
 }
 
@@ -83,18 +83,19 @@ function slotView(slot: MealSlot, found: SlotWithDishes | undefined): SlotView {
 }
 
 /**
- * Everything about the user's current week, read fresh from the database.
- * The calendar and every chat turn read state through this, so an edit made
- * in one is visible in the other on the next read (SPEC core principle 2).
+ * Everything about one week (the current one unless `weekOf` names a date
+ * in another), read fresh from the database. The calendar and every chat
+ * turn read state through this, so an edit made in one is visible in the
+ * other on the next read (SPEC core principle 2).
  */
 export async function getWeekContext(
   userId: string,
-  { now = new Date() }: { now?: Date } = {},
+  { now = new Date(), weekOf }: { now?: Date; weekOf?: string } = {},
 ): Promise<WeekContext> {
   const user = await requireUser(db, userId);
   const today = todayFor(user, now);
   const weekStartsOn = user.weekStartsOn === 0 ? 0 : 1;
-  const week = getWeekRange(today, weekStartsOn);
+  const week = getWeekRange(optionalDate(weekOf) ?? today, weekStartsOn);
 
   const [slots, pantry, facts] = await Promise.all([
     findSlotsInRange(db, userId, week.start, week.end),
@@ -140,7 +141,7 @@ export async function getWeekContext(
       .map((f) => ({
         id: f.id,
         content: f.content,
-        restriction: restrictionOf(f),
+        restrictions: restrictionsOf(f),
       })),
     preferences: facts
       .filter((f) => f.type !== "restriction")

@@ -25,6 +25,26 @@ describe("getWeekContext", () => {
     expect(ctx.days.map((d) => d.date)).toHaveLength(7);
   });
 
+  it("reads another week when asked (e.g. planning next week)", async () => {
+    const user = await createUser();
+    await createSlot(
+      user.id,
+      parsePlainDate("2026-09-30"),
+      "dinner",
+      "planned",
+    );
+    const ctx = await getWeekContext(user.id, {
+      now: lateEveningToronto,
+      weekOf: "2026-09-30",
+    });
+    expect(ctx.today).toBe("2026-09-24");
+    expect(ctx.week).toEqual({ start: "2026-09-28", end: "2026-10-05" });
+    expect(slotOf(ctx, "2026-09-30", "dinner")?.state).toBe("planned");
+    await expect(
+      getWeekContext(user.id, { weekOf: "2026-02-30" }),
+    ).rejects.toMatchObject({ code: "invalid_input" });
+  });
+
   it("honors a Sunday week start", async () => {
     const user = await createUser({ weekStartsOn: 0 });
     const ctx = await getWeekContext(user.id, { now: lateEveningToronto });
@@ -107,9 +127,12 @@ describe("getWeekContext", () => {
     const ctx = await getWeekContext(user.id, { now: lateEveningToronto });
     expect(ctx.user.dishesPerMeal).toBe(3);
     expect(ctx.pantry.map((p) => p.rawName)).toEqual(["鸡蛋"]);
-    expect(ctx.restrictions.map((r) => r.restriction)).toEqual([
-      { kind: "allergen", tag: "peanut" },
-      { kind: "term", text: "不吃榴莲" },
+    expect(ctx.restrictions.map((r) => r.restrictions)).toEqual([
+      [{ kind: "allergen", tag: "peanut" }],
+      [
+        { kind: "term", text: "不吃榴莲" },
+        { kind: "term", text: "榴莲" },
+      ],
     ]);
     expect(ctx.preferences.map((p) => p.content)).toEqual(["喜欢酸辣"]);
   });
@@ -140,7 +163,7 @@ describe("SPEC acceptance: calendar edits are visible to the next chat turn", ()
       date: "2026-09-23",
       slot: "dinner",
       action: "markAteOut",
-      dishNames: ["酸菜鱼"],
+      dishes: [{ name: "酸菜鱼" }],
     });
 
     // ...and the next chat turn's context read sees exactly that.

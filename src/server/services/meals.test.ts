@@ -1,12 +1,27 @@
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { parsePlainDate } from "@/domain/date";
+import type { RecipeFeatures } from "@/domain/features";
 import { db } from "@/server/db/client";
 import { mealDishes, meals } from "@/server/db/schema";
-import { createSlot, createUser, listEvents } from "@/server/testing/db";
+import {
+  createRecipe,
+  createSlot,
+  createUser,
+  listEvents,
+} from "@/server/testing/db";
 import { logEatOut, markDish, markSlot } from "./meals";
 
 const date = parsePlainDate("2026-09-23");
+
+const braisedPork: RecipeFeatures = {
+  role: "meat",
+  cuisine: "home_style",
+  method: "braise",
+  flavor: "soy_braised",
+  main_ingredient: "pork_belly",
+  oil_level: "high",
+};
 
 describe("markSlot", () => {
   it("creates a row for an unknown slot and logs one event", async () => {
@@ -50,7 +65,7 @@ describe("markSlot", () => {
     const view = await logEatOut(user.id, {
       date,
       slot: "dinner",
-      dishNames: [" 酸菜鱼 "],
+      dishes: [{ name: " 酸菜鱼 " }],
     });
     expect(view.state).toBe("ate_out");
     expect(view.dishes.map((d) => [d.position, d.dishName, d.status])).toEqual([
@@ -61,17 +76,57 @@ describe("markSlot", () => {
 
   it("adds a second dish eaten out without touching the first", async () => {
     const user = await createUser();
-    await logEatOut(user.id, { date, slot: "dinner", dishNames: ["酸菜鱼"] });
+    await logEatOut(user.id, {
+      date,
+      slot: "dinner",
+      dishes: [{ name: "酸菜鱼" }],
+    });
     const view = await logEatOut(user.id, {
       date,
       slot: "dinner",
-      dishNames: ["米饭"],
+      dishes: [{ name: "米饭" }],
     });
     expect(view.dishes.map((d) => [d.dishName, d.status])).toEqual([
       ["酸菜鱼", "eaten"],
       ["米饭", "eaten"],
     ]);
     expect(await listEvents(user.id)).toHaveLength(2);
+  });
+
+  it("marking skipped clears eaten dishes and their ratings", async () => {
+    const user = await createUser();
+    await createSlot(user.id, date, "dinner", "cooked", [
+      { dishName: "红烧肉", status: "eaten", rating: 5 },
+    ]);
+    const view = await markSlot(user.id, {
+      date,
+      slot: "dinner",
+      action: "markSkipped",
+    });
+    expect(view.dishes.map((d) => [d.status, d.rating])).toEqual([
+      ["not_eaten", null],
+    ]);
+  });
+
+  it("takes an eaten-out dish's features from the library recipe of the same name", async () => {
+    const user = await createUser();
+    await createRecipe("红烧肉", ["五花肉"], { features: braisedPork });
+    const view = await logEatOut(user.id, {
+      date,
+      slot: "dinner",
+      dishes: [
+        { name: "红烧肉" },
+        { name: "卤肉饭", features: braisedPork },
+        { name: "麻辣香锅" },
+      ],
+    });
+    expect(
+      view.dishes.map((d) => [d.dishName, d.recipeId, d.features]),
+    ).toEqual([
+      ["红烧肉", null, braisedPork],
+      ["卤肉饭", null, braisedPork],
+      ["麻辣香锅", null, null],
+    ]);
   });
 
   it("removes unconfirmed draft dishes when a draft slot is marked", async () => {
@@ -101,7 +156,12 @@ describe("markSlot", () => {
     for (const bad of [
       { date: "2026-02-30", slot: "dinner", action: "markCooked" },
       { date, slot: "supper", action: "markCooked" },
-      { date, slot: "dinner", action: "markCooked", dishNames: ["不该有"] },
+      {
+        date,
+        slot: "dinner",
+        action: "markCooked",
+        dishes: [{ name: "不该有" }],
+      },
     ]) {
       await expect(
         // biome-ignore lint/suspicious/noExplicitAny: deliberately invalid input
@@ -175,6 +235,16 @@ describe("markDish", () => {
     expect(
       await markDish(user.id, { dishId: dish.id, action: "markNotEaten" }),
     ).toEqual({ id: dish.id, status: "not_eaten", rating: null });
+  });
+
+  it("refuses to mark a dish eaten in a skipped slot", async () => {
+    const user = await createUser();
+    const { dishes } = await createSlot(user.id, date, "dinner", "skipped", [
+      { dishName: "红烧肉", status: "not_eaten" },
+    ]);
+    await expect(
+      markDish(user.id, { dishId: dishes[0]?.id ?? "", action: "markEaten" }),
+    ).rejects.toMatchObject({ code: "invalid_transition" });
   });
 
   it("refuses to mark an unconfirmed draft dish", async () => {

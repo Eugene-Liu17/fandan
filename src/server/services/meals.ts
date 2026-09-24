@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { isPlainDate, type PlainDate } from "@/domain/date";
 import { MEAL_SLOTS } from "@/domain/enums";
+import { type RecipeFeatures, recipeFeaturesSchema } from "@/domain/features";
+import { normalizeName } from "@/domain/ingredients/normalize";
 import {
   applyDishAction,
   applySlotAction,
@@ -9,16 +11,18 @@ import {
 } from "@/domain/meal-state";
 import { db } from "@/server/db/client";
 import { appendEvent } from "@/server/db/repositories/events";
+import type { DbExecutor } from "@/server/db/repositories/executor";
 import {
   type DishRow,
   deleteDishes,
   deleteSlot,
-  findDish,
+  findDishWithSlot,
   insertDishes,
   lockSlot,
   updateDish,
   upsertSlotStatus,
 } from "@/server/db/repositories/meals";
+import { findVisibleRecipesByNames } from "@/server/db/repositories/recipes";
 import { requireUser } from "./context";
 import { parseInput, ServiceError } from "./errors";
 import type { SlotView } from "./week-context";
@@ -33,11 +37,23 @@ export const markSlotInputSchema = z
     date: plainDate,
     slot: z.enum(MEAL_SLOTS),
     action: z.enum(["markCooked", "markSkipped", "markAteOut"]),
-    /** Dishes eaten out; only with `markAteOut`. */
-    dishNames: z.array(z.string().trim().min(1)).default([]),
+    /**
+     * Dishes eaten out; only with `markAteOut`. `features` (e.g. labeled by
+     * the parsing model) lets dedupe apply its main-ingredient + flavor rule
+     * to them; when omitted, a library recipe with the same name supplies
+     * them.
+     */
+    dishes: z
+      .array(
+        z.object({
+          name: z.string().trim().min(1),
+          features: recipeFeaturesSchema.nullable().optional(),
+        }),
+      )
+      .default([]),
   })
-  .refine((v) => v.dishNames.length === 0 || v.action === "markAteOut", {
-    message: "dishNames is only allowed with markAteOut",
+  .refine((v) => v.dishes.length === 0 || v.action === "markAteOut", {
+    message: "dishes is only allowed with markAteOut",
   });
 
 export type MarkSlotInput = z.input<typeof markSlotInputSchema>;
@@ -69,14 +85,37 @@ function toSlotView(
  * chat alike. Applies the ADR-006 rules through the domain state machine,
  * then records a `slot_marked` event in the same transaction.
  */
+/**
+ * Features for dishes eaten out: the given ones, else those of a visible
+ * library recipe with the same name, else null (no main-ingredient dedupe).
+ */
+async function eatenOutFeatures(
+  ex: DbExecutor,
+  userId: string,
+  dishes: { name: string; features?: RecipeFeatures | null }[],
+): Promise<(RecipeFeatures | null)[]> {
+  const unlabeled = dishes.filter((d) => d.features == null).map((d) => d.name);
+  const library = await findVisibleRecipesByNames(ex, userId, unlabeled);
+  return dishes.map(
+    (d) =>
+      d.features ??
+      library.find((r) => normalizeName(r.name) === normalizeName(d.name))
+        ?.features ??
+      null,
+  );
+}
+
 export async function markSlot(
   userId: string,
   input: MarkSlotInput,
 ): Promise<SlotView> {
-  const { date, slot, action, dishNames } = parseInput(
-    markSlotInputSchema,
-    input,
-  );
+  const {
+    date,
+    slot,
+    action,
+    dishes: eatenOut,
+  } = parseInput(markSlotInputSchema, input);
+  const dishNames = eatenOut.map((d) => d.name);
 
   return db.transaction(async (tx) => {
     await requireUser(tx, userId);
@@ -113,8 +152,10 @@ export async function markSlot(
       if (outcome === undefined || outcome === "remove") {
         removed.push(dish.id);
       } else if (outcome !== dish.status) {
+        // A rating only belongs to an eaten dish.
         const updated = await updateDish(tx, userId, dish.id, {
           status: outcome,
+          ...(outcome === "eaten" ? {} : { rating: null }),
         });
         if (updated) kept.push(updated);
       } else {
@@ -125,6 +166,7 @@ export async function markSlot(
 
     const nextPosition =
       kept.reduce((max, d) => Math.max(max, d.position), -1) + 1;
+    const features = await eatenOutFeatures(tx, userId, eatenOut);
     const added = await insertDishes(
       tx,
       dishNames.map((dishName, i) => ({
@@ -133,7 +175,7 @@ export async function markSlot(
         position: nextPosition + i,
         recipeId: null,
         dishName,
-        features: null,
+        features: features[i] ?? null,
         status: "eaten" as const,
       })),
     );
@@ -180,14 +222,15 @@ export async function markDish(userId: string, input: MarkDishInput) {
   const { dishId, action, rating } = parseInput(markDishInputSchema, input);
 
   return db.transaction(async (tx) => {
-    const dish = await findDish(tx, userId, dishId);
-    if (!dish) throw new ServiceError("not_found", `No dish ${dishId}`);
+    const found = await findDishWithSlot(tx, userId, dishId);
+    if (!found) throw new ServiceError("not_found", `No dish ${dishId}`);
+    const { dish, slotStatus } = found;
 
     let status = dish.status;
     let currentRating = dish.rating;
 
     if (action !== undefined) {
-      const result = applyDishAction(status, action);
+      const result = applyDishAction(slotStatus, status, action);
       if (!result.ok) {
         throw new ServiceError("invalid_transition", result.reason);
       }
