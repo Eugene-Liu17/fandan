@@ -25,7 +25,7 @@ milestone into tasks. Architecture decisions live in
 | T1 | M1 data model design (docs only) | M1 | T0 | `feat/m1-data-layer` | done |
 | T2 | Domain foundations | M1 | T1 | `feat/m1-data-layer` | done |
 | T3 | Domain rules | M1 | T2 | `feat/m1-data-layer` | done |
-| T4 | Schema, migrations, seed | M1 | T2 | `feat/m1-data-layer` | todo |
+| T4 | Schema, migrations, seed | M1 | T2 | `feat/m1-data-layer` | done |
 | T5 | Repositories, services, integration tests | M1 | T3, T4 | `feat/m1-data-layer` | todo |
 
 T1–T5 share one branch, so they run in order; T3 and T4 do not depend on
@@ -177,14 +177,16 @@ in `SCORE_WEIGHTS` (`src/domain/scoring.ts`) and are tuned in M4.
   means the shared library.
 - `messages` stores `parts jsonb` in the AI SDK UIMessage shape (M4 adds
   a migration if it needs more).
-- New `scripts/seed.ts` (the `db:seed` script currently points at a file
-  that does not exist): the developer user, a few hand-written recipes,
-  and some meal history so dedupe has data. Safe to run twice.
+- New `scripts/seed.ts`: ten hand-written shared recipes, the developer
+  account (created if missing, never modified), and a separate demo account
+  rebuilt on every run with meal history so dedupe has data. Safe to run
+  twice.
 
 **Acceptance criteria**
-- [ ] Generated SQL was read and is pasted into the PR description.
-- [ ] `db:migrate` succeeds on an empty database.
-- [ ] Running `db:seed` twice leaves the same data.
+- [x] Generated SQL was read and is pasted into the PR description.
+- [x] `db:migrate` succeeds on an empty database.
+- [x] Running `db:seed` twice leaves the same data (verified with a
+      per-table digest of business columns on a scratch database).
 
 **Open questions**: none beyond T1's outcomes.
 

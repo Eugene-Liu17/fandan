@@ -141,10 +141,10 @@ table itself and is keyed by `id`, and `recipes` uses a nullable `owner_id`
 | --- | --- | --- |
 | `id` | uuid pk | Matches Supabase `auth.users.id` from M6 |
 | `display_name` | text | |
-| `timezone` | text | IANA name, e.g. `America/Los_Angeles` |
+| `timezone` | text | IANA name, e.g. `America/Los_Angeles`; default `UTC` |
 | `week_starts_on` | smallint | 0 = Sunday, 1 = Monday; default 1 |
-| `household_size` | smallint | Set at onboarding |
-| `dishes_per_meal` | smallint | Default derived from household size |
+| `household_size` | smallint null | Null until onboarding; ≥ 1 |
+| `dishes_per_meal` | smallint null | Null = derive from household size; ≥ 1 |
 | `dedupe_window_days` | smallint | Default 14 (N in the dedupe rules) |
 | `taste_summary` | text null | Model-generated; regenerated on confirm |
 | `taste_summary_updated_at` | timestamptz null | |
@@ -187,7 +187,7 @@ table itself and is keyed by `id`, and `recipes` uses a nullable `owner_id`
 | `steps` | jsonb | Ordered list of step text |
 | `features` | jsonb null | ADR-008 schema; filled by M2 labeling |
 | `source` | text not null | e.g. `howtocook` |
-| `source_ref` | text | Path or URL within the source |
+| `source_ref` | text not null | Path, URL, or slug within the source |
 | `license` | text not null | |
 | `created_at`, `updated_at` | timestamptz | |
 
@@ -288,7 +288,10 @@ The MVP is acceptable when:
 Run this after each milestone that touches the conversation or calendar
 to confirm the MVP still works end-to-end:
 
-1. Sign in as the seeded single user (or the phase-1 developer account).
+1. Sign in as the developer account created by `pnpm run db:seed` (empty,
+   so onboarding runs). The seed also rebuilds a separate demo account with
+   two weeks of history and a peanut allergy, for checking dedupe and
+   allergy filtering without touching real data.
 2. Complete onboarding: answer household size, restrictions/allergies
    (include at least one real restriction), meals-cooked-per-week, and
    flavor preference. Confirm the answers appear in `taste_facts` with
