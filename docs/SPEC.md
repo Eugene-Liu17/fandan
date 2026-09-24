@@ -55,7 +55,7 @@ what got cooked at home.
 5. **Dedupe (MVP does only the first tier)**: a dish eaten out or cooked
    recently, and a dish sharing the same main ingredient + flavor
    profile, are excluded from the home-cooked menu within a configurable
-   N-day window.
+   N-day window, counted both before and after the planned date.
 6. **Allergies and restrictions**: a hard filter. No recommendation path
    may bypass it.
 7. **Shopping list for supplementary ingredients**: `confirmed recipe

@@ -287,6 +287,14 @@ ingredient name contains the restriction's term or one of its aliases as a subst
 Free text that cannot be mapped to the dictionary becomes a `term` restriction and is
 never dropped.
 
+Two further safety nets, both in `src/domain/restrictions.ts`:
+
+- The **recipe name** is scanned too, but only with terms of two or more
+  characters, so an incomplete ingredient list (花生酱拌面 without 花生酱) is still
+  caught while 鱼香肉丝 is not read as fish.
+- Some categories add extra search terms for products the dictionary does not list
+  (`pork` adds 猪, catching 猪油 and 猪骨汤).
+
 **Standard condiments.** A domain constant of durable pantry staples: cooking oil,
 salt, sugar, light and dark soy sauce, vinegar, cooking wine, oyster sauce, starch,
 white pepper, chicken bouillon. Scallion, ginger, and garlic are fresh, run out, and

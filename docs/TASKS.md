@@ -24,7 +24,7 @@ milestone into tasks. Architecture decisions live in
 | T0 | Fix CI and M0 leftovers | M0 | — | `main` (direct) | done |
 | T1 | M1 data model design (docs only) | M1 | T0 | `feat/m1-data-layer` | done |
 | T2 | Domain foundations | M1 | T1 | `feat/m1-data-layer` | done |
-| T3 | Domain rules | M1 | T2 | `feat/m1-data-layer` | todo |
+| T3 | Domain rules | M1 | T2 | `feat/m1-data-layer` | done |
 | T4 | Schema, migrations, seed | M1 | T2 | `feat/m1-data-layer` | todo |
 | T5 | Repositories, services, integration tests | M1 | T3, T4 | `feat/m1-data-layer` | todo |
 
@@ -152,13 +152,13 @@ functions.
   `vitest.config.ts`; make CI run `pnpm run test:coverage`.
 
 **Acceptance criteria**
-- [ ] Named domain tests exist for the SPEC acceptance criteria on
+- [x] Named domain tests exist for the SPEC acceptance criteria on
       allergy filtering, dedupe, and the shopping list.
-- [ ] Domain coverage ≥ 90%, enforced in CI.
-- [ ] `pnpm run check:boundaries` passes.
+- [x] Domain coverage ≥ 90%, enforced in CI.
+- [x] `pnpm run check:boundaries` passes.
 
-**Open questions**
-- Scoring weights (start simple; tune in M4 with real drafts).
+**Open questions**: none. Resolved: scoring weights start as the constants
+in `SCORE_WEIGHTS` (`src/domain/scoring.ts`) and are tuned in M4.
 
 ---
 
