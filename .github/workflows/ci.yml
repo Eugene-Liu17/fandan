@@ -35,8 +35,8 @@ jobs:
       - name: Check layer boundaries
         run: pnpm run check:boundaries
 
-      - name: Unit tests
-        run: pnpm test
+      - name: Unit tests with coverage thresholds
+        run: pnpm run test:coverage
 
       - name: Build
         run: pnpm run build

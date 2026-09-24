@@ -28,11 +28,18 @@ export default defineConfig({
     ],
     coverage: {
       provider: "v8",
-      // Coverage is scoped to src/domain for now: it's the only layer with
-      // code in it at M0. The 90% threshold from ROADMAP.md M1 is enforced
-      // starting M1, once services/repositories exist to cover too.
+      // Business rules live in src/domain, so that is where the 90%
+      // threshold from ROADMAP.md M1 applies. CI runs `test:coverage`, so
+      // dropping below it fails the build.
       include: ["src/domain/**"],
+      exclude: ["src/domain/**/*.test.ts", "src/domain/testing/**"],
       reporter: ["text", "html"],
+      thresholds: {
+        lines: 90,
+        functions: 90,
+        branches: 90,
+        statements: 90,
+      },
     },
   },
 });
