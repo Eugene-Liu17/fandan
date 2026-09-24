@@ -1,0 +1,1 @@
+ALTER TABLE "taste_facts" ADD CONSTRAINT "taste_facts_restriction_payload_check" CHECK ("taste_facts"."type" <> 'restriction' or "taste_facts"."payload" is not null);
