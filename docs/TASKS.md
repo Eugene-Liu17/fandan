@@ -27,8 +27,8 @@ milestone into tasks. Architecture decisions live in
 | T3 | Domain rules | M1 | T2 | `feat/m1-data-layer` | done |
 | T4 | Schema, migrations, seed | M1 | T2 | `feat/m1-data-layer` | done |
 | T5 | Repositories, services, integration tests | M1 | T3, T4 | `feat/m1-data-layer` | done |
-| T6 | Restriction filter hardening | M1 follow-up | T5 | `fix/m1-review` | in progress |
-| T7 | Engineering cleanup | M1 follow-up | T5 | `fix/m1-review` | in progress |
+| T6 | Restriction filter hardening | M1 follow-up | T5 | `fix/m1-review` | done |
+| T7 | Engineering cleanup | M1 follow-up | T5 | `fix/m1-review` | done |
 | T8 | Slot write safety | M3 | T7 | `feat/m3-calendar` | todo |
 | T9 | Services API for M3/M4 | M3 | T8 | `feat/m3-calendar` | todo |
 | T10 | Traditional Chinese normalization | Before phase 2 | T6 | TBD | todo |
@@ -247,12 +247,13 @@ are not dedupe history; M4's draft composer avoids repeats within a menu
 - A stored restriction applies its payload **and** its wording.
 
 **Acceptance criteria**
-- [ ] A table-driven test of 30+ real statements and ingredient spellings,
-      each excluded, plus counter-cases that must stay allowed.
-- [ ] Every leak reproduced by the review is blocked (re-run of the review's
+- [x] A table-driven test of 30+ real statements and ingredient spellings,
+      each excluded, plus counter-cases that must stay allowed (42 + 11 in
+      `src/domain/restrictions.test.ts`).
+- [x] Every leak reproduced by the review is blocked (re-run of the review's
       reproduction cases).
-- [ ] A restriction with a `term` payload of 不吃猪肉和海鲜 excludes 红烧肉.
-- [ ] Recipes with unmapped ingredients never reach the ranked list; tests
+- [x] A restriction with a `term` payload of 不吃猪肉和海鲜 excludes 红烧肉.
+- [x] Recipes with unmapped ingredients never reach the ranked list; tests
       cover it.
 
 **Open questions**: none.
@@ -277,9 +278,9 @@ and 9) while they are cheap.
 - SPEC documents the dedupe window as |Δdays| < N.
 
 **Acceptance criteria**
-- [ ] CI fails on an edited migration (verified by reasoning about the diff
-      filter and a local dry run) and runs the seed twice.
-- [ ] All checks pass; coverage thresholds hold.
+- [x] CI fails on an edited migration (verified with a throwaway commit
+      that edited 0000) and runs the seed twice.
+- [x] All checks pass; coverage thresholds hold.
 
 **Open questions**: none.
 
