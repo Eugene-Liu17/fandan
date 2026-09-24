@@ -6,6 +6,11 @@ import { mealDishes, meals, tasteFacts, users } from "./schema";
 
 // The last line of defence behind the services: the database itself rejects
 // rows that break the data model's invariants.
+
+/** Matches the error Drizzle raises when Postgres rejects a named constraint. */
+const violates = (constraint: string) => ({
+  cause: { constraint_name: constraint },
+});
 describe("database constraints", () => {
   const date = parsePlainDate("2026-09-23");
 
@@ -18,7 +23,7 @@ describe("database constraints", () => {
         content: "花生过敏",
         source: "stated",
       }),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject(violates("taste_facts_restriction_payload_check"));
     await db.insert(tasteFacts).values({
       userId: user.id,
       type: "preference",
@@ -37,7 +42,7 @@ describe("database constraints", () => {
         slot: "dinner",
         status: "cooked",
       }),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject(violates("meals_user_id_date_slot_unique"));
   });
 
   it("limits ratings to 1–5", async () => {
@@ -51,12 +56,12 @@ describe("database constraints", () => {
         status: "eaten",
         rating: 6,
       }),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject(violates("meal_dishes_rating_check"));
   });
 
   it("rejects a week start other than Sunday or Monday", async () => {
     await expect(
       db.insert(users).values({ displayName: "x", weekStartsOn: 3 }),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject(violates("users_week_starts_on_check"));
   });
 });

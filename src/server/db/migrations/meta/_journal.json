@@ -22,6 +22,13 @@
       "when": 1790273398207,
       "tag": "0002_restriction_payload_required",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790283910193,
+      "tag": "0003_events_seq",
+      "breakpoints": true
     }
   ]
 }
