@@ -22,11 +22,11 @@ milestone into tasks. Architecture decisions live in
 | ID | Title | Milestone | Depends on | Branch | Status |
 | --- | --- | --- | --- | --- | --- |
 | T0 | Fix CI and M0 leftovers | M0 | — | `main` (direct) | done |
-| T1 | M1 data model design (docs only) | M1 | T0 | `feat/m1-data-layer` | todo |
-| T2 | Domain foundations | M1 | T1 | `feat/m1-data-layer` | todo |
-| T3 | Domain rules | M1 | T2 | `feat/m1-data-layer` | todo |
-| T4 | Schema, migrations, seed | M1 | T2 | `feat/m1-data-layer` | todo |
-| T5 | Repositories, services, integration tests | M1 | T3, T4 | `feat/m1-data-layer` | todo |
+| T1 | M1 data model design (docs only) | M1 | T0 | `feat/m1-data-layer` | done |
+| T2 | Domain foundations | M1 | T1 | `feat/m1-data-layer` | done |
+| T3 | Domain rules | M1 | T2 | `feat/m1-data-layer` | done |
+| T4 | Schema, migrations, seed | M1 | T2 | `feat/m1-data-layer` | done |
+| T5 | Repositories, services, integration tests | M1 | T3, T4 | `feat/m1-data-layer` | done |
 
 T1–T5 share one branch, so they run in order; T3 and T4 do not depend on
 each other.
@@ -65,10 +65,9 @@ Next generates during `next dev` / `next build` / `next typegen`. CI runs
 schema or domain code is written.
 
 **Scope**
-- **ADR-006 — multiple dishes per meal slot.** Revises ADR-003. Preferred
-  direction: `meals` stays one table, one row per dish, `(user_id, date,
-  slot)` is not unique, add a `position` column, and status is tracked
-  per dish. Must define:
+- **ADR-006 — multiple dishes per meal slot.** Revises ADR-003. Two
+  tables: `meals` (one row per slot, unique on `(user_id, date, slot)`)
+  and `meal_dishes` (one row per dish, with its own status). Must define:
   - a slot with no rows is "unknown" (SPEC principle 5);
   - what happens to planned dishes when a slot is marked "ate out";
   - how the default number of dishes per meal follows household size.
@@ -94,14 +93,14 @@ schema or domain code is written.
 **Out of scope**: any code, schema file, or migration.
 
 **Acceptance criteria**
-- [ ] ADR-006, ADR-007, ADR-008 merged; ADR-003 marked as revised.
-- [ ] SPEC.md "Data model" updated to the refined version.
-- [ ] Every open question is either resolved or explicitly deferred to a
+- [x] ADR-006, ADR-007, ADR-008 written; ADR-003 marked as revised.
+- [x] SPEC.md "Data model" updated to the refined version.
+- [x] Every open question is either resolved or explicitly deferred to a
       named task.
 
-**Open questions**
-- Default dishes per meal as a function of household size.
-- Whether `taste_facts` restrictions need an expiry (e.g. temporary diets).
+**Open questions**: none. Resolved: default dishes per meal is derived from
+household size (ADR-006). Deferred: restriction expiry (e.g. temporary
+diets) is out of MVP; `taste_facts.deleted_at` covers retracting a fact.
 
 ---
 
@@ -115,14 +114,18 @@ schema or domain code is written.
 - Plain-date helpers per ADR-007; adjust `week.ts` accordingly.
 - Ingredient dictionary, `normalizeIngredient`, standard condiments list.
 - Recipe `features` Zod schema and fixed vocabularies.
-- Meal status state machine: allowed transitions; no record means
-  "unknown", never "cooked".
+- Meal status state machines for both levels (slot status and dish
+  status, per ADR-006): allowed transitions; no record means "unknown",
+  never "cooked"; marking a slot `ate_out` sets its planned dishes to
+  `not_eaten`.
+- `defaultDishesPerMeal(householdSize)` (ADR-006).
 
 **Acceptance criteria**
-- [ ] Every exported function has a unit test.
-- [ ] Edge cases from `.claude/rules/domain.md` are covered where
-      relevant (empty pantry, fully eaten-out week, allergy conflict).
-- [ ] `pnpm run check:boundaries` passes.
+- [x] Every exported function has a unit test.
+- [x] Edge cases from `.claude/rules/domain.md` are covered where
+      relevant (fully eaten-out week, hidden allergens in condiments;
+      empty pantry and allergy conflicts are T3 rules).
+- [x] `pnpm run check:boundaries` passes.
 
 **Open questions**: none beyond T1's outcomes.
 
@@ -149,13 +152,13 @@ functions.
   `vitest.config.ts`; make CI run `pnpm run test:coverage`.
 
 **Acceptance criteria**
-- [ ] Named domain tests exist for the SPEC acceptance criteria on
+- [x] Named domain tests exist for the SPEC acceptance criteria on
       allergy filtering, dedupe, and the shopping list.
-- [ ] Domain coverage ≥ 90%, enforced in CI.
-- [ ] `pnpm run check:boundaries` passes.
+- [x] Domain coverage ≥ 90%, enforced in CI.
+- [x] `pnpm run check:boundaries` passes.
 
-**Open questions**
-- Scoring weights (start simple; tune in M4 with real drafts).
+**Open questions**: none. Resolved: scoring weights start as the constants
+in `SCORE_WEIGHTS` (`src/domain/scoring.ts`) and are tuned in M4.
 
 ---
 
@@ -165,7 +168,8 @@ functions.
 
 **Scope** (follow `.claude/skills/db-change/SKILL.md`)
 - Tables: `users`, `taste_facts`, `pantry_items`, `recipes`, `meals`,
-  `events`, `conversations`, `messages`.
+  `meal_dishes`, `events`, `conversations`, `messages`, exactly as in the
+  SPEC.md data model.
 - Every user-data table has an indexed `user_id`; primary keys are uuid
   with default `gen_random_uuid()`; timestamps are `timestamptz`.
 - `users.id` is uuid so it can match Supabase `auth.users.id` in M6.
@@ -173,14 +177,16 @@ functions.
   means the shared library.
 - `messages` stores `parts jsonb` in the AI SDK UIMessage shape (M4 adds
   a migration if it needs more).
-- New `scripts/seed.ts` (the `db:seed` script currently points at a file
-  that does not exist): the developer user, a few hand-written recipes,
-  and some meal history so dedupe has data. Safe to run twice.
+- New `scripts/seed.ts`: ten hand-written shared recipes, the developer
+  account (created if missing, never modified), and a separate demo account
+  rebuilt on every run with meal history so dedupe has data. Safe to run
+  twice.
 
 **Acceptance criteria**
-- [ ] Generated SQL was read and is pasted into the PR description.
-- [ ] `db:migrate` succeeds on an empty database.
-- [ ] Running `db:seed` twice leaves the same data.
+- [x] Generated SQL was read and is pasted into the PR description.
+- [x] `db:migrate` succeeds on an empty database.
+- [x] Running `db:seed` twice leaves the same data (verified with a
+      per-table digest of business columns on a scratch database).
 
 **Open questions**: none beyond T1's outcomes.
 
@@ -193,9 +199,9 @@ call, tested against a real Postgres.
 
 **Scope**
 - Repositories in `src/server/db/`; services in `src/server/services/`
-  orchestrating domain + repositories. Initial set: `getWeekContext`,
-  `markMeal`, `logEatOut`, `addPantryItems`, `computeShoppingList`,
-  `getCandidates`.
+  orchestrating domain + repositories: `getWeekContext`, `markSlot`,
+  `logEatOut`, `markDish`, `addPantryItems`, `removePantryItem`,
+  `getShoppingList`, `getCandidates`.
 - Every write that changes user state also appends an `events` row.
 - Integration tests in the vitest `server` project: separate test
   database, migrated before the run, tables cleared between cases.
@@ -203,10 +209,13 @@ call, tested against a real Postgres.
   before tests; replace the placeholder `DATABASE_URL` in `ci.yml`.
 
 **Acceptance criteria**
-- [ ] After `markMeal`, `getWeekContext` returns the new state (SPEC:
+- [x] After `markSlot`, `getWeekContext` returns the new state (SPEC:
       calendar edits are visible to the next chat turn).
-- [ ] A two-user test proves queries are isolated by `user_id`.
-- [ ] `spec-reviewer` has been run on the branch.
-- [ ] M1 boxes ticked in ROADMAP.md (in the PR for `feat/m1-data-layer`).
+- [x] A two-user test proves queries are isolated by `user_id`.
+- [x] `spec-reviewer` has been run on the branch; its correctness
+      findings are fixed (see the PR for the list).
+- [x] M1 boxes ticked in ROADMAP.md (in the PR for `feat/m1-data-layer`).
 
-**Open questions**: none beyond earlier tasks.
+**Open questions**: none. Decided: planned dishes elsewhere in the week
+are not dedupe history; M4's draft composer avoids repeats within a menu
+(ADR-006, ROADMAP M4).

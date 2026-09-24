@@ -6,16 +6,31 @@ on:
   pull_request:
 
 env:
-  # Not a real connection string — CI doesn't run against a database.
-  # This exists only so any module that validates env vars at import
-  # time (see src/server/env.ts) doesn't fail before reaching a step
-  # that actually needs Postgres. e2e (which does need a real DB) is
-  # intentionally not run in CI yet — see docs/ROADMAP.md M3.
-  DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci"
+  # The Postgres service below, with the same credentials as
+  # docker-compose.yml. Integration tests use a separate fandan_test
+  # database that vitest's global setup creates and migrates (see
+  # vitest.config.ts). e2e is not run in CI yet — see docs/ROADMAP.md M3.
+  DATABASE_URL: "postgresql://fandan:fandan@localhost:5432/fandan"
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: fandan
+          POSTGRES_PASSWORD: fandan
+          POSTGRES_DB: fandan
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fandan -d fandan"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 15
+
     steps:
       - uses: actions/checkout@v7
 
@@ -35,8 +50,20 @@ jobs:
       - name: Check layer boundaries
         run: pnpm run check:boundaries
 
-      - name: Unit tests
-        run: pnpm test
+      - name: Apply migrations
+        run: pnpm run db:migrate
+
+      - name: Check the schema matches the migrations
+        run: |
+          pnpm run db:generate
+          if [ -n "$(git status --porcelain src/server/db/migrations)" ]; then
+            echo "::error::The Drizzle schema changed without a migration. Run pnpm run db:generate and commit the result."
+            git status --porcelain src/server/db/migrations
+            exit 1
+          fi
+
+      - name: Unit and integration tests with coverage thresholds
+        run: pnpm run test:coverage
 
       - name: Build
         run: pnpm run build

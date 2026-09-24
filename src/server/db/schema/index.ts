@@ -1,5 +1,10 @@
-// Table definitions land here starting M1 (see docs/ROADMAP.md and the
-// data model in docs/SPEC.md). Left empty at M0 so drizzle-kit has a schema file to
-// diff against; the only migration at this stage enables the pgcrypto
-// extension that gen_random_uuid() will need once tables exist.
-export {};
+// Every table and enum, re-exported from one entry point. drizzle.config.ts
+// points at this file. Column rationale: docs/SPEC.md "Data model".
+export * from "./conversations";
+export * from "./enums";
+export * from "./events";
+export * from "./meals";
+export * from "./pantry";
+export * from "./recipes";
+export * from "./taste-facts";
+export * from "./users";

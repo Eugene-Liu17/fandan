@@ -21,18 +21,18 @@ for the standard workflow.
 
 ## M1 — Data layer and domain logic
 
-- [ ] Schema, migrations, and seed data (single user: the developer) for
+- [x] Schema, migrations, and seed data (single user: the developer) for
       every table in SPEC.md's [data model](SPEC.md#data-model)
-- [ ] Domain functions and unit tests for:
+- [x] Domain functions and unit tests for:
   - meal status transitions
   - dedupe rules: same dish excluded for N days; same main-ingredient +
     flavor excluded for N days; N configurable
   - allergy/restriction hard filtering
   - ingredient shortfall (shopping list) calculation
   - candidate dish scoring
-- [ ] Services layer, plus repository integration tests against a real
+- [x] Services layer, plus repository integration tests against a real
       local database
-- [ ] Domain test coverage ≥ 90%
+- [x] Domain test coverage ≥ 90%
 
 ## M2 — Recipe library
 
@@ -61,7 +61,9 @@ for the standard workflow.
   - parse free text into pantry items
   - log a meal
   - search candidate dishes
-  - generate a menu draft (writes `draft` status)
+  - generate a menu draft (writes `draft` status); the composer avoids
+    repeating a dish or a main ingredient + flavor already planned or
+    drafted elsewhere in the dedupe window (ADR-006)
   - revise a draft
   - confirm a draft
   - multiple-choice question (client-side interactive tool, single and

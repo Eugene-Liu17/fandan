@@ -55,7 +55,7 @@ what got cooked at home.
 5. **Dedupe (MVP does only the first tier)**: a dish eaten out or cooked
    recently, and a dish sharing the same main ingredient + flavor
    profile, are excluded from the home-cooked menu within a configurable
-   N-day window.
+   N-day window, counted both before and after the planned date.
 6. **Allergies and restrictions**: a hard filter. No recommendation path
    may bypass it.
 7. **Shopping list for supplementary ingredients**: `confirmed recipe
@@ -110,43 +110,155 @@ indistinguishable in the database from one entered by hand.
 
 ### Eating-out logging
 
-A one-line message in the chat, or a manual calendar entry, both write a
-`meals` row with `status = 'ate_out'` and an `actual_dish_name`. Both
-paths participate in dedupe scoring identically.
+A one-line message in the chat, or a manual calendar entry, both set the
+slot's `meals.status` to `ate_out` and add the dish eaten as a `meal_dishes`
+row (status `eaten`, with a `dish_name`). Both paths participate in dedupe
+scoring identically (see [ADR-006](DECISIONS.md)).
 
 ### Manual marking
 
 The calendar is available independent of any conversation. Marking a
-cell "cooked" / "not cooked" / "ate out" writes to `meals` and appends an
-event; the next conversation turn reads the same table, so a manual edit
+cell "cooked" / "not cooked" / "ate out" writes to `meals` (and, for
+per-dish marks, `meal_dishes`) and appends an event; the next conversation turn reads the same table, so a manual edit
 is visible to the AI immediately (see [ADR-002](DECISIONS.md) and
 [ADR-003](DECISIONS.md)).
 
 ## Data model
 
-Every user-data table has a `user_id` column, indexed. Times are stored
-in UTC. This is the M0-era outline; it is refined table-by-table in M1
-and the refined version is folded back into this section.
+Every user-data table has a `user_id` column, indexed; `users` is the identity
+table itself and is keyed by `id`, and `recipes` uses a nullable `owner_id`
+(null = the shared library, which is not user data). Primary keys are `uuid` with default
+`gen_random_uuid()` unless noted. Audit timestamps are `timestamptz` in UTC;
+`meals.date` is the user's local calendar date (see
+[ADR-007](DECISIONS.md)). Enum-like columns take their values from constants in
+`src/domain`, so the database and the domain cannot drift apart. Design rationale:
+[ADR-006](DECISIONS.md) (meals and dishes), [ADR-007](DECISIONS.md) (dates),
+[ADR-008](DECISIONS.md) (ingredients, restrictions, features).
 
-- **`users`** — account info, `taste_summary` (model-generated text),
-  preferences (e.g. dedupe window in days).
-- **`taste_facts`** — `type` (`preference` / `restriction` / `routine`),
-  `content`, `source` (`stated` / `choice`), `created_at`.
-- **`pantry_items`** — normalized ingredient name, coarse quantity
-  (`plenty` / `some` / `low`, nullable), `added_at`.
-- **`recipes`** — name, category, ingredients (each tagged main or
-  supplementary), steps, `features` (jsonb: cuisine, main ingredient,
-  cooking method, flavor, oil-heaviness), `source`, `license`,
-  `owner_id` (null = shared library).
-- **`meals`** — one row per meal slot. `date`, `slot` (`breakfast` /
-  `lunch` / `dinner`), `planned_recipe_id`, `status` (`draft` /
-  `planned` / `cooked` / `skipped` / `ate_out` / `unknown`),
-  `actual_dish_name`, `features` (jsonb), `rating`, `note`.
-- **`events`** — `type`, `payload` (jsonb), `created_at`. Records draft
-  edits, manual marks, multiple-choice answers, and `unmet_request`
-  events.
-- **`conversations`** / **`messages`** — persisted chat, structured
-  around the AI SDK's message-persistence approach.
+### `users`
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | uuid pk | Matches Supabase `auth.users.id` from M6 |
+| `display_name` | text | |
+| `timezone` | text | IANA name, e.g. `America/Los_Angeles`; default `UTC` |
+| `week_starts_on` | smallint | 0 = Sunday, 1 = Monday; default 1 |
+| `household_size` | smallint null | Null until onboarding; ≥ 1 |
+| `dishes_per_meal` | smallint null | Null = derive from household size; ≥ 1 |
+| `dedupe_window_days` | smallint | Default 14 (N in the dedupe rules) |
+| `taste_summary` | text null | Model-generated; regenerated on confirm |
+| `taste_summary_updated_at` | timestamptz null | |
+| `created_at`, `updated_at` | timestamptz | |
+
+### `taste_facts`
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | uuid pk | |
+| `user_id` | uuid | Indexed together with `type` |
+| `type` | enum | `preference` / `restriction` / `routine` |
+| `content` | text | What the user said or chose |
+| `payload` | jsonb null | For restrictions: `{kind, ...}` per ADR-008 |
+| `source` | enum | `stated` / `choice` (nothing inferred is stored) |
+| `created_at` | timestamptz | |
+| `deleted_at` | timestamptz null | Soft delete; the user can retract a fact |
+
+### `pantry_items`
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | uuid pk | |
+| `user_id` | uuid | Indexed |
+| `ingredient_key` | text null | Dictionary key; null if unmapped |
+| `raw_name` | text | As the user wrote it |
+| `quantity` | enum null | `plenty` / `some` / `low` |
+| `added_at` | timestamptz | |
+| `removed_at` | timestamptz null | Set when used up or removed |
+
+### `recipes`
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | uuid pk | |
+| `owner_id` | uuid null | null = shared library; otherwise a user id |
+| `name` | text | |
+| `category` | text | |
+| `ingredients` | jsonb | `[{raw_name, key, amount?, role: main \| supplementary}]` |
+| `steps` | jsonb | Ordered list of step text |
+| `features` | jsonb null | ADR-008 schema; filled by M2 labeling |
+| `source` | text not null | e.g. `howtocook` |
+| `source_ref` | text not null | Path, URL, or slug within the source |
+| `license` | text not null | |
+| `created_at`, `updated_at` | timestamptz | |
+
+Unique on `(source, source_ref)` so re-importing is idempotent. Indexed on
+`owner_id`.
+
+### `meals`
+
+One row per meal slot. No row means "unknown".
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | uuid pk | |
+| `user_id` | uuid | Indexed |
+| `date` | date | User-local calendar date |
+| `slot` | enum | `breakfast` / `lunch` / `dinner` |
+| `status` | enum | `draft` / `planned` / `cooked` / `skipped` / `ate_out` |
+| `note` | text null | |
+| `created_at`, `updated_at` | timestamptz | |
+
+Unique on `(user_id, date, slot)`.
+
+### `meal_dishes`
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | uuid pk | |
+| `user_id` | uuid | Indexed |
+| `meal_id` | uuid fk | References `meals.id`, on delete cascade; indexed |
+| `position` | smallint | Order within the slot |
+| `recipe_id` | uuid null fk | Null for dishes eaten out |
+| `dish_name` | text null | Snapshot; null if the user gave no name |
+| `features` | jsonb null | Snapshot used by dedupe |
+| `status` | enum | `draft` / `planned` / `eaten` / `not_eaten` |
+| `rating` | smallint null | 1–5 |
+| `note` | text null | |
+| `created_at`, `updated_at` | timestamptz | |
+
+### `events`
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | uuid pk | |
+| `user_id` | uuid | Indexed together with `created_at` |
+| `type` | text | Validated against a domain constant (text, not an enum, because event types change often) |
+| `payload` | jsonb | |
+| `created_at` | timestamptz | |
+
+Records draft edits, manual marks, multiple-choice answers, tool calls, and
+`unmet_request` events.
+
+### `conversations`
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | uuid pk | |
+| `user_id` | uuid | Indexed |
+| `week_start` | date null | The week this conversation plans |
+| `title` | text null | |
+| `created_at`, `updated_at` | timestamptz | |
+
+### `messages`
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | text pk | The AI SDK message id |
+| `conversation_id` | uuid fk | Indexed together with `created_at` |
+| `user_id` | uuid | Indexed |
+| `role` | text | `user` / `assistant` / `system` |
+| `parts` | jsonb | AI SDK UIMessage parts |
+| `created_at` | timestamptz | |
 
 ## Acceptance criteria
 
@@ -176,7 +288,10 @@ The MVP is acceptable when:
 Run this after each milestone that touches the conversation or calendar
 to confirm the MVP still works end-to-end:
 
-1. Sign in as the seeded single user (or the phase-1 developer account).
+1. Sign in as the developer account created by `pnpm run db:seed` (empty,
+   so onboarding runs). The seed also rebuilds a separate demo account with
+   two weeks of history and a peanut allergy, for checking dedupe and
+   allergy filtering without touching real data.
 2. Complete onboarding: answer household size, restrictions/allergies
    (include at least one real restriction), meals-cooked-per-week, and
    flavor preference. Confirm the answers appear in `taste_facts` with

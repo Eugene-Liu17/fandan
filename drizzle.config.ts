@@ -18,8 +18,11 @@ if (!process.env.DATABASE_URL) {
 
 export default defineConfig({
   dialect: "postgresql",
-  schema: "./src/server/db/schema/*.ts",
+  // A single entry point: a *.ts glob would load re-exported tables twice.
+  schema: "./src/server/db/schema/index.ts",
   out: "./src/server/db/migrations",
+  // Must match the `casing` option in src/server/db/client.ts.
+  casing: "snake_case",
   dbCredentials: {
     url: process.env.DATABASE_URL,
   },
