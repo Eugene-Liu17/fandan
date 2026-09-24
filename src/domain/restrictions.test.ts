@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  containsTerm,
   filterByRestrictions,
   findViolations,
   type Restriction,
   restrictionSchema,
   restrictionsFromText,
+  uniqueRestrictions,
 } from "./restrictions";
 import { recipe } from "./testing/fixtures";
 
@@ -234,5 +236,116 @@ describe("restrictionsFromText", () => {
       JSON.stringify(r),
     );
     expect(new Set(found).size).toBe(found.length);
+  });
+});
+
+describe("SPEC acceptance: real statements and spellings (post-M1 review)", () => {
+  const excluded = (statement: string, ingredients: string[]) =>
+    filterByRestrictions(
+      [recipe("dish", "测试菜", ingredients)],
+      restrictionsFromText(statement),
+    ).excluded.length === 1;
+
+  it.each([
+    ["不吃牛肉", ["肥牛卷", "金针菇"]],
+    ["不吃牛肉", ["牛排"]],
+    ["不吃牛肉", ["牛百叶"]],
+    ["不吃牛肉", ["牛骨汤底"]],
+    ["不吃牛羊肉", ["牛腩", "土豆"]],
+    ["不吃牛羊肉", ["羊排"]],
+    ["不吃猪肉", ["肉丝", "青椒"]],
+    ["不吃猪肉", ["火腿", "米饭"]],
+    ["不吃猪肉", ["培根", "芦笋"]],
+    ["不吃猪肉", ["叉烧"]],
+    ["不吃猪肉", ["猪油"]],
+    ["不吃鸡", ["翅中"]],
+    ["不吃鸡", ["凤爪"]],
+    ["不吃鸡", ["西兰花", "鸡精"]],
+    ["奶过敏", ["鸡蛋", "黄油"]],
+    ["奶过敏", ["芝士"]],
+    ["乳制品过敏", ["淡奶油"]],
+    ["鸡蛋过敏", ["馄饨皮"]],
+    ["蛋过敏", ["鸡蛋"]],
+    ["鸡蛋过敏", ["西兰花", "鸡精"]],
+    ["豆类过敏", ["豆腐"]],
+    ["大豆过敏", ["酱油"]],
+    ["小麦过敏", ["馄饨皮"]],
+    ["麸质过敏", ["面条"]],
+    ["海鲜过敏", ["xo酱"]],
+    ["海鲜过敏", ["基围虾"]],
+    ["海鲜过敏", ["鲈鱼"]],
+    ["芝麻过敏", ["鸡胸肉", "辣椒油"]],
+    ["花生过敏", ["黄瓜", "红油"]],
+    ["不吃红肉", ["排骨"]],
+    ["不吃红肉", ["羊肉"]],
+    ["不吃肉", ["排骨"]],
+    ["我不吃肉", ["牛腩"]],
+    ["不吃荤", ["鸡翅"]],
+    ["我吃素", ["虾仁"]],
+    ["蛋奶素", ["五花肉"]],
+    ["纯素", ["鸡蛋"]],
+    ["纯素", ["牛奶"]],
+    ["不吃香菜", ["芫荽"]],
+    ["不吃葱", ["小葱"]],
+    ["不吃榴莲", ["榴莲肉"]],
+    ["对虾过敏", ["虾仁"]],
+  ])("%s excludes %j", (statement, ingredients) => {
+    expect(excluded(statement, ingredients)).toBe(true);
+  });
+
+  it.each([
+    ["不吃猪肉", ["鸡翅"]],
+    ["不吃猪肉", ["牛腩"]],
+    ["蛋奶素", ["番茄", "鸡蛋"]],
+    ["蛋奶素", ["牛奶"]],
+    ["鸡蛋过敏", ["鸡翅"]],
+    ["牛奶过敏", ["牛腩"]],
+    ["不吃牛肉", ["牛奶"]],
+    ["不吃牛肉", ["牛油果"]],
+    ["不吃洋葱", ["小葱"]],
+    ["不吃羊肉", ["羊肚菌"]],
+    ["花生过敏", ["菠菜"]],
+  ])("%s still allows %j", (statement, ingredients) => {
+    expect(excluded(statement, ingredients)).toBe(false);
+  });
+});
+
+describe("category search terms", () => {
+  it("catch unlisted products but not look-alike words", () => {
+    const noBeef: Restriction = { kind: "category", category: "beef" };
+    const noPoultry: Restriction = { kind: "category", category: "poultry" };
+    const check = (r: Restriction, ingredient: string) =>
+      findViolations(recipe("x", "测试菜", [ingredient]), [r]).length > 0;
+    expect(check(noBeef, "牛骨髓")).toBe(true);
+    expect(check(noBeef, "牛奶")).toBe(false);
+    expect(check(noBeef, "牛蛙")).toBe(false);
+    expect(check(noPoultry, "鸭血")).toBe(true);
+    expect(check(noPoultry, "鸭蛋")).toBe(false);
+  });
+});
+
+describe("containsTerm", () => {
+  it("ignores the term inside an excluded word, but not elsewhere", () => {
+    const beef = { term: "牛", unless: ["牛奶"] };
+    expect(containsTerm("牛奶", beef)).toBe(false);
+    expect(containsTerm("牛奶炖牛肉", beef)).toBe(true);
+    expect(containsTerm("肥牛", { term: "牛" })).toBe(true);
+  });
+
+  it("does not join neighbours into a new match when masking", () => {
+    // Deleting 奶 would turn 牛奶肉 into 牛肉.
+    expect(containsTerm("牛奶肉", { term: "牛肉", unless: ["奶"] })).toBe(
+      false,
+    );
+  });
+});
+
+describe("uniqueRestrictions", () => {
+  it("drops duplicates and keeps first-seen order", () => {
+    const peanut: Restriction = { kind: "allergen", tag: "peanut" };
+    expect(uniqueRestrictions([peanut, soy, { ...peanut }])).toEqual([
+      peanut,
+      soy,
+    ]);
   });
 });
