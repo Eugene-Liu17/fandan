@@ -118,6 +118,20 @@ describe("applySlotAction: marks", () => {
     });
   });
 
+  it("marking skipped means nothing in the slot was eaten", () => {
+    expect(
+      applySlotAction(
+        "cooked",
+        ["eaten", "not_eaten", "planned"],
+        "markSkipped",
+      ),
+    ).toEqual({
+      ok: true,
+      slot: "skipped",
+      dishes: ["not_eaten", "not_eaten", "not_eaten"],
+    });
+  });
+
   it("leaves per-dish answers alone when correcting the slot", () => {
     expect(
       applySlotAction("cooked", ["eaten", "not_eaten"], "markAteOut"),
@@ -152,20 +166,31 @@ describe("applyDishAction", () => {
     "eaten",
     "not_eaten",
   ] as const)("marks a %s dish eaten or not eaten", (status) => {
-    expect(applyDishAction(status, "markEaten")).toEqual({
+    expect(applyDishAction("cooked", status, "markEaten")).toEqual({
       ok: true,
       status: "eaten",
     });
-    expect(applyDishAction(status, "markNotEaten")).toEqual({
+    expect(applyDishAction("cooked", status, "markNotEaten")).toEqual({
       ok: true,
       status: "not_eaten",
     });
   });
 
   it("refuses to mark an unconfirmed draft dish", () => {
-    expect(applyDishAction("draft", "markEaten")).toEqual({
+    expect(applyDishAction("draft", "draft", "markEaten")).toEqual({
       ok: false,
       reason: "dish_is_draft",
+    });
+  });
+
+  it("refuses to mark a dish eaten in a skipped slot, but allows not eaten", () => {
+    expect(applyDishAction("skipped", "not_eaten", "markEaten")).toEqual({
+      ok: false,
+      reason: "slot_skipped",
+    });
+    expect(applyDishAction("skipped", "planned", "markNotEaten")).toEqual({
+      ok: true,
+      status: "not_eaten",
     });
   });
 });

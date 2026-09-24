@@ -111,7 +111,9 @@ function markedDishOutcome(
   // "cooked" says nothing about which dish was eaten, so planned stays
   // planned until the review step (never assumed eaten).
   if (dish === "planned" && target !== "cooked") return "not_eaten";
-  // Eaten / not_eaten were set per dish; correcting them is a dish action.
+  // A skipped meal was not eaten at all, so nothing in it counts as eaten.
+  if (dish === "eaten" && target === "skipped") return "not_eaten";
+  // Otherwise per-dish answers stand; correcting them is a dish action.
   return dish;
 }
 
@@ -119,14 +121,22 @@ export type DishAction = "markEaten" | "markNotEaten";
 
 export type DishTransition =
   | { ok: true; status: DishStatus }
-  | { ok: false; reason: "dish_is_draft" };
+  | { ok: false; reason: "dish_is_draft" | "slot_skipped" };
 
-/** Applies a per-dish mark (e.g. from the "review last week" step). */
+/**
+ * Applies a per-dish mark (e.g. from the "review last week" step) to a dish
+ * in a slot whose state is `slot`. A dish in a skipped slot cannot be eaten:
+ * the slot has to be re-marked first.
+ */
 export function applyDishAction(
+  slot: SlotState,
   status: DishStatus,
   action: DishAction,
 ): DishTransition {
   if (status === "draft") return { ok: false, reason: "dish_is_draft" };
+  if (action === "markEaten" && slot === "skipped") {
+    return { ok: false, reason: "slot_skipped" };
+  }
   return { ok: true, status: action === "markEaten" ? "eaten" : "not_eaten" };
 }
 
