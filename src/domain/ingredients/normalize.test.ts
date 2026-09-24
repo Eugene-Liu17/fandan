@@ -31,13 +31,14 @@ describe("normalizeIngredient", () => {
   });
 
   it("maps the first and last entries of the dictionary", () => {
+    // Update this test when entries are added at either end.
     expect(normalizeIngredient("猪肉")).toEqual({
       kind: "mapped",
       key: "pork",
     });
-    expect(normalizeIngredient("番茄酱")).toEqual({
+    expect(normalizeIngredient("可乐")).toEqual({
       kind: "mapped",
-      key: "ketchup",
+      key: "cola",
     });
   });
 
@@ -156,5 +157,17 @@ describe("dictionary integrity", () => {
     expect(tags("花生油")).toContain("peanut");
     expect(tags("虾皮")).toContain("crustacean");
     expect(tags("豆芽")).toContain("soy");
+    expect(tags("鸡精")).toContain("egg");
+    expect(tags("辣椒油")).toEqual(
+      expect.arrayContaining(["sesame", "peanut"]),
+    );
+    expect(tags("腊肠")).toEqual(expect.arrayContaining(["soy", "wheat"]));
+    expect(tags("豆豉")).toEqual(expect.arrayContaining(["soy", "wheat"]));
+    expect(tags("火腿肠")).toEqual(expect.arrayContaining(["soy", "wheat"]));
+    expect(tags("叉烧")).toEqual(expect.arrayContaining(["soy", "wheat"]));
+    expect(tags("馄饨皮")).toEqual(expect.arrayContaining(["wheat", "egg"]));
+    expect(tags("XO酱")).toEqual(
+      expect.arrayContaining(["crustacean", "mollusc"]),
+    );
   });
 });
