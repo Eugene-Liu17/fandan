@@ -190,7 +190,7 @@ export const SEED_RECIPES: SeedRecipe[] = [
     category: "荤菜",
     ingredients: [
       main("鸡翅", "chicken_wing", "10个"),
-      side("可乐", null, "1罐"),
+      side("可乐", "cola", "1罐"),
       side("生抽", "light_soy_sauce", "2勺"),
       side("老抽", "dark_soy_sauce", "半勺"),
       side("姜", "ginger"),

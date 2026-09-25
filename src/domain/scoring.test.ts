@@ -85,6 +85,23 @@ describe("rankCandidates: hard filters first", () => {
   });
 });
 
+describe("rankCandidates: unmapped-ingredient quarantine", () => {
+  it("never ranks a recipe with an ingredient the dictionary does not know", () => {
+    const mystery = recipe("mystery", "秘制小炒", ["五花肉", "秘制酱"]);
+    const result = rankCandidates(
+      input({ recipes: [mystery, spinach], cravings: ["秘制小炒"] }),
+    );
+    expect(ids(result)).toEqual(["spinach"]);
+    expect(result.excluded).toEqual([
+      {
+        recipe: mystery,
+        reason: "unmapped_ingredient",
+        ingredients: ["秘制酱"],
+      },
+    ]);
+  });
+});
+
 describe("rankCandidates: scoring", () => {
   it("ranks recipes whose main ingredient is in the pantry first", () => {
     const result = rankCandidates(

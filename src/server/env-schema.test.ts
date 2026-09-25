@@ -9,7 +9,6 @@ describe("parseEnv", () => {
       ...base,
       MODEL_PLANNER: "claude-sonnet-5",
       MODEL_PARSER: "claude-haiku-4-5-20251001",
-      DEDUPE_WINDOW_DAYS: 14,
     });
   });
 
@@ -19,14 +18,9 @@ describe("parseEnv", () => {
     expect(env.MODEL_PLANNER).toBe("claude-sonnet-5");
   });
 
-  it("keeps a real API key and coerces the dedupe window", () => {
-    const env = parseEnv({
-      ...base,
-      ANTHROPIC_API_KEY: "sk-test",
-      DEDUPE_WINDOW_DAYS: "7",
-    });
+  it("keeps a real API key", () => {
+    const env = parseEnv({ ...base, ANTHROPIC_API_KEY: "sk-test" });
     expect(env.ANTHROPIC_API_KEY).toBe("sk-test");
-    expect(env.DEDUPE_WINDOW_DAYS).toBe(7);
   });
 
   it("fails on a missing or empty DATABASE_URL", () => {

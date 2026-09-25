@@ -24,7 +24,9 @@ export interface IngredientEntry {
 // biome-ignore format: one entry per line keeps the dictionary reviewable.
 export const INGREDIENTS = [
   // --- Pork ---
-  { key: "pork", name: "猪肉", aliases: ["猪肉片", "肉片"], category: "pork", allergens: [] },
+  // Bare 肉丝 / 肉丁 / 肉块 usually mean pork; per the stricter-entry rule they
+  // map here rather than staying unmapped.
+  { key: "pork", name: "猪肉", aliases: ["猪肉片", "肉片", "肉丝", "肉丁", "肉块", "猪肉丝"], category: "pork", allergens: [] },
   { key: "pork_belly", name: "五花肉", aliases: ["猪五花", "带皮五花肉", "五花"], category: "pork", allergens: [] },
   { key: "pork_ribs", name: "排骨", aliases: ["猪排骨", "猪肋排", "肋排", "小排"], category: "pork", allergens: [] },
   { key: "pork_tenderloin", name: "里脊肉", aliases: ["猪里脊", "里脊", "猪柳"], category: "pork", allergens: [] },
@@ -33,13 +35,22 @@ export const INGREDIENTS = [
   { key: "ground_pork", name: "猪肉末", aliases: ["肉末", "猪肉馅", "肉馅", "猪绞肉"], category: "pork", allergens: [] },
   { key: "pork_trotter", name: "猪蹄", aliases: ["猪脚", "猪手"], category: "pork", allergens: [] },
   { key: "cured_pork", name: "腊肉", aliases: ["咸肉"], category: "pork", allergens: [] },
-  { key: "chinese_sausage", name: "腊肠", aliases: ["广式腊肠", "香肠"], category: "pork", allergens: [] },
+  // Cantonese sausage is cured with soy sauce, so it carries soy and wheat.
+  { key: "chinese_sausage", name: "腊肠", aliases: ["广式腊肠", "香肠"], category: "pork", allergens: ["soy", "wheat"] },
+  { key: "ham", name: "火腿", aliases: ["金华火腿"], category: "pork", allergens: [] },
+  { key: "ham_sausage", name: "火腿肠", aliases: [], category: "pork", allergens: ["soy", "wheat"] },
+  { key: "bacon", name: "培根", aliases: [], category: "pork", allergens: [] },
+  { key: "char_siu", name: "叉烧", aliases: ["叉烧肉"], category: "pork", allergens: ["soy", "wheat"] },
+  { key: "luncheon_meat", name: "午餐肉", aliases: [], category: "pork", allergens: ["soy", "wheat"] },
   // --- Beef and lamb ---
   { key: "beef", name: "牛肉", aliases: ["牛肉片"], category: "beef", allergens: [] },
   { key: "beef_brisket", name: "牛腩", aliases: [], category: "beef", allergens: [] },
   { key: "beef_shank", name: "牛腱子", aliases: ["牛腱", "牛展"], category: "beef", allergens: [] },
   { key: "beef_tenderloin", name: "牛里脊", aliases: ["牛柳"], category: "beef", allergens: [] },
   { key: "ground_beef", name: "牛肉末", aliases: ["牛肉馅"], category: "beef", allergens: [] },
+  { key: "fatty_beef", name: "肥牛", aliases: ["肥牛卷", "肥牛片"], category: "beef", allergens: [] },
+  { key: "beef_steak", name: "牛排", aliases: [], category: "beef", allergens: [] },
+  { key: "beef_tripe", name: "毛肚", aliases: ["牛肚", "牛百叶"], category: "beef", allergens: [] },
   { key: "lamb", name: "羊肉", aliases: ["羊肉片", "羊肉卷"], category: "lamb", allergens: [] },
   { key: "lamb_chops", name: "羊排", aliases: [], category: "lamb", allergens: [] },
   // --- Poultry ---
@@ -92,6 +103,7 @@ export const INGREDIENTS = [
   { key: "soybean_sprout", name: "黄豆芽", aliases: ["豆芽"], category: "vegetable", allergens: ["soy"] },
   // --- Vegetables ---
   { key: "mung_bean_sprout", name: "绿豆芽", aliases: [], category: "vegetable", allergens: [] },
+  { key: "pickled_mustard_greens", name: "酸菜", aliases: ["老坛酸菜"], category: "vegetable", allergens: [] },
   { key: "napa_cabbage", name: "大白菜", aliases: ["白菜", "黄芽白"], category: "vegetable", allergens: [] },
   { key: "baby_napa", name: "娃娃菜", aliases: [], category: "vegetable", allergens: [] },
   { key: "bok_choy", name: "小白菜", aliases: ["青菜", "上海青", "油菜"], category: "vegetable", allergens: [] },
@@ -158,6 +170,7 @@ export const INGREDIENTS = [
   { key: "noodles", name: "面条", aliases: ["挂面", "面"], category: "grain", allergens: ["wheat"] },
   { key: "flour", name: "面粉", aliases: ["中筋面粉", "普通面粉"], category: "grain", allergens: ["wheat"] },
   { key: "dumpling_wrapper", name: "饺子皮", aliases: [], category: "grain", allergens: ["wheat"] },
+  { key: "wonton_wrapper", name: "馄饨皮", aliases: ["云吞皮"], category: "grain", allergens: ["wheat", "egg"] },
   { key: "mantou", name: "馒头", aliases: [], category: "grain", allergens: ["wheat"] },
   { key: "rice_noodles", name: "米粉", aliases: ["米线"], category: "grain", allergens: [] },
   { key: "glass_noodles", name: "粉丝", aliases: ["龙口粉丝", "绿豆粉丝"], category: "grain", allergens: [] },
@@ -190,15 +203,20 @@ export const INGREDIENTS = [
   { key: "fish_sauce", name: "鱼露", aliases: [], category: "condiment", allergens: ["fish"] },
   { key: "starch", name: "淀粉", aliases: ["玉米淀粉", "生粉", "土豆淀粉", "水淀粉"], category: "condiment", allergens: [] },
   { key: "white_pepper", name: "白胡椒粉", aliases: ["白胡椒", "胡椒粉"], category: "condiment", allergens: [] },
-  { key: "chicken_bouillon", name: "鸡精", aliases: ["鸡粉"], category: "condiment", allergens: [] },
+  // Common chicken bouillon brands list whole egg among the ingredients.
+  { key: "chicken_bouillon", name: "鸡精", aliases: ["鸡粉"], category: "condiment", allergens: ["egg"] },
   { key: "msg", name: "味精", aliases: [], category: "condiment", allergens: [] },
   { key: "chili_bean_paste", name: "豆瓣酱", aliases: ["郫县豆瓣酱", "郫县豆瓣"], category: "condiment", allergens: ["soy", "wheat"] },
   { key: "sweet_bean_sauce", name: "甜面酱", aliases: [], category: "condiment", allergens: ["soy", "wheat"] },
-  { key: "fermented_black_bean", name: "豆豉", aliases: [], category: "condiment", allergens: ["soy"] },
-  { key: "chili_oil", name: "辣椒油", aliases: ["红油", "油泼辣子"], category: "condiment", allergens: [] },
+  { key: "fermented_black_bean", name: "豆豉", aliases: [], category: "condiment", allergens: ["soy", "wheat"] },
+  // Chili oil is often made with sesame seeds, and some versions with peanuts.
+  { key: "chili_oil", name: "辣椒油", aliases: ["红油", "油泼辣子"], category: "condiment", allergens: ["sesame", "peanut"] },
+  { key: "xo_sauce", name: "xo酱", aliases: [], category: "condiment", allergens: ["crustacean", "mollusc"] },
   { key: "five_spice", name: "五香粉", aliases: [], category: "condiment", allergens: [] },
   { key: "cumin", name: "孜然", aliases: ["孜然粉"], category: "condiment", allergens: [] },
   { key: "ketchup", name: "番茄酱", aliases: [], category: "condiment", allergens: [] },
+  // --- Beverages used in cooking ---
+  { key: "cola", name: "可乐", aliases: ["可口可乐"], category: "beverage", allergens: [] },
 ] as const satisfies readonly IngredientEntry[];
 
 export type IngredientKey = (typeof INGREDIENTS)[number]["key"];

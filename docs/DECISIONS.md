@@ -297,9 +297,13 @@ ingredient name contains the restriction's term or one of its aliases as a subst
 Free text that cannot be mapped to the dictionary becomes a `term` restriction and is
 never dropped. `restrictionsFromText` reads a statement such as 花生过敏, 不吃猪肉,
 海鲜过敏 or 吃素 into structured restrictions (keyword groups plus dictionary names
-of two or more characters) while keeping the statement itself as terms. It is used
-for "other (I'll type it)" answers and whenever a stored payload fails to parse. The
-database requires a payload on every restriction fact (migration 0002).
+of two or more characters) while keeping the statement itself as terms. Words too
+common inside other words (肉, 荤, 奶, 蛋) count only when they are the whole
+statement once phrasing such as 不吃 or 过敏 is stripped, so 不吃猪肉 never becomes
+"no meat". A stored restriction applies its payload **together with** what its
+wording says, so a narrow payload cannot drop part of a statement such as
+不吃猪肉和海鲜. The database requires a payload on every restriction fact
+(migration 0002).
 
 Two further safety nets, both in `src/domain/restrictions.ts`:
 
@@ -307,7 +311,19 @@ Two further safety nets, both in `src/domain/restrictions.ts`:
   characters, so an incomplete ingredient list (花生酱拌面 without 花生酱) is still
   caught while 鱼香肉丝 is not read as fish.
 - Some categories add extra search terms for products the dictionary does not list
-  (`pork` adds 猪, catching 猪油 and 猪骨汤).
+  (`pork` adds 猪, catching 猪油 and 猪骨汤; `beef` adds 牛, catching 肥牛卷), with
+  per-category exclusions for look-alike words (牛奶 is not beef, 鸡蛋 is not
+  poultry). The exclusions apply to all of the category's terms, including the
+  dictionary's own single-character aliases such as 鸡.
+
+**Unmapped ingredients are quarantined** (decided 2026-09-24, after the post-M1
+review). A recipe with any ingredient that does not resolve to the dictionary is not
+a candidate for anyone until that ingredient is mapped: the allergy filter cannot
+vouch for an ingredient it does not know. Candidate ranking reports such recipes
+with the reason `unmapped_ingredient` and the unknown names. Hiding them only from
+users with restrictions was rejected: with a young dictionary it would leave those
+users almost nothing to eat. M2's import reports coverage so the dictionary grows
+through reviewed PRs.
 
 **Standard condiments.** A domain constant of durable pantry staples: cooking oil,
 salt, sugar, light and dark soy sauce, vinegar, cooking wine, oyster sauce, starch,

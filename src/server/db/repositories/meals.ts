@@ -102,17 +102,6 @@ export async function upsertSlotStatus(
   return row;
 }
 
-/** Deletes a slot row (and, by cascade, its dishes): the slot becomes unknown. */
-export async function deleteSlot(
-  ex: DbExecutor,
-  userId: string,
-  mealId: string,
-): Promise<void> {
-  await ex
-    .delete(meals)
-    .where(and(eq(meals.userId, userId), eq(meals.id, mealId)));
-}
-
 /** A dish with the status of the slot it belongs to. */
 export async function findDishWithSlot(
   ex: DbExecutor,

@@ -36,5 +36,6 @@ export const INGREDIENT_CATEGORIES = [
   "dairy",
   "aromatic",
   "condiment",
+  "beverage",
 ] as const;
 export type IngredientCategory = (typeof INGREDIENT_CATEGORIES)[number];

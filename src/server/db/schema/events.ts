@@ -1,4 +1,4 @@
-import { index, jsonb, pgTable, text } from "drizzle-orm/pg-core";
+import { bigint, index, jsonb, pgTable, text } from "drizzle-orm/pg-core";
 import { id, timestamptz } from "./columns";
 import { userIdRef } from "./users";
 
@@ -15,6 +15,11 @@ export const events = pgTable(
     type: text().notNull(),
     payload: jsonb().$type<Record<string, unknown>>().notNull().default({}),
     createdAt: timestamptz().notNull().defaultNow(),
+    /**
+     * Insertion order. `created_at` is the transaction's start time, so
+     * events written by one transaction share it; order by `seq` instead.
+     */
+    seq: bigint({ mode: "number" }).generatedAlwaysAsIdentity(),
   },
   (t) => [index("events_user_id_created_at_idx").on(t.userId, t.createdAt)],
 );

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { addDays, isPlainDate, type PlainDate } from "@/domain/date";
+import { addDays } from "@/domain/date";
 import type { RecipeCandidate } from "@/domain/recipe";
 import { type RankResult, rankCandidates } from "@/domain/scoring";
 import { db } from "@/server/db/client";
@@ -9,6 +9,7 @@ import { findVisibleRecipes } from "@/server/db/repositories/recipes";
 import { findActiveTasteFacts } from "@/server/db/repositories/taste-facts";
 import { requireUser, restrictionsOf } from "./context";
 import { parseInput } from "./errors";
+import { plainDateSchema } from "./schemas";
 
 /**
  * How far back past ratings are read for scoring. A data-loading bound, not
@@ -17,10 +18,7 @@ import { parseInput } from "./errors";
 const RATING_HISTORY_DAYS = 180;
 
 export const getCandidatesInputSchema = z.object({
-  targetDate: z
-    .string()
-    .refine(isPlainDate, { message: "Expected a YYYY-MM-DD date" })
-    .transform((s) => s as PlainDate),
+  targetDate: plainDateSchema,
   cravings: z.array(z.string()).default([]),
   limit: z.number().int().positive().max(100).default(20),
 });

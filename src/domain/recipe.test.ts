@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { recipeIngredientSchema, resolveIngredientKey } from "./recipe";
+import {
+  recipeIngredientSchema,
+  resolveIngredientKey,
+  unmappedIngredients,
+} from "./recipe";
 
 describe("recipeIngredientSchema", () => {
   it("accepts a mapped and an unmapped ingredient", () => {
@@ -53,5 +57,34 @@ describe("resolveIngredientKey", () => {
 
   it("returns null for an unmapped name", () => {
     expect(resolveIngredientKey({ raw_name: "榴莲", key: null })).toBeNull();
+  });
+});
+
+describe("unmappedIngredients", () => {
+  it("lists the raw names the dictionary does not know", () => {
+    const dish = {
+      id: "x",
+      name: "酸辣粉",
+      features: null,
+      ingredients: [
+        { raw_name: "红薯粉", key: null, role: "main" },
+        { raw_name: "醋", key: null, role: "supplementary" },
+        { raw_name: "秘制酱", key: null, role: "supplementary" },
+      ] as const,
+    };
+    expect(unmappedIngredients(dish)).toEqual(["红薯粉", "秘制酱"]);
+  });
+
+  it("is empty when every ingredient resolves", () => {
+    const dish = {
+      id: "y",
+      name: "番茄炒蛋",
+      features: null,
+      ingredients: [
+        { raw_name: "番茄", key: "tomato", role: "main" },
+        { raw_name: "鸡蛋", key: null, role: "main" },
+      ] as const,
+    };
+    expect(unmappedIngredients(dish)).toEqual([]);
   });
 });

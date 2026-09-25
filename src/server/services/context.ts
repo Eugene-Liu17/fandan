@@ -7,6 +7,7 @@ import {
   type Restriction,
   restrictionSchema,
   restrictionsFromText,
+  uniqueRestrictions,
 } from "@/domain/restrictions";
 import type { DbExecutor } from "@/server/db/repositories/executor";
 import type { TasteFactRow } from "@/server/db/repositories/taste-facts";
@@ -22,19 +23,27 @@ export async function requireUser(
   return user;
 }
 
+/** The user's week start as the domain type (the column is a checked smallint). */
+export function weekStartsOnOf(user: UserRow): 0 | 1 {
+  return user.weekStartsOn === 0 ? 0 : 1;
+}
+
 /** The user's current local date (ADR-007). */
 export function todayFor(user: UserRow, now: Date): PlainDate {
   return toPlainDate(now, user.timezone);
 }
 
 /**
- * The restrictions a stored fact expresses. A payload that does not parse
- * falls back to reading the stated text (e.g. "花生过敏"), so a restriction
- * is never dropped (ADR-008).
+ * The restrictions a stored fact expresses: its payload together with what
+ * its wording says (e.g. "不吃猪肉和海鲜"), so neither a narrow payload nor
+ * one that no longer parses can drop part of a stated restriction (ADR-008).
  */
 export function restrictionsOf(fact: TasteFactRow): Restriction[] {
   const parsed = restrictionSchema.safeParse(fact.payload);
-  return parsed.success ? [parsed.data] : restrictionsFromText(fact.content);
+  return uniqueRestrictions([
+    ...(parsed.success ? [parsed.data] : []),
+    ...restrictionsFromText(fact.content),
+  ]);
 }
 
 /** Parses an optional YYYY-MM-DD input date. */

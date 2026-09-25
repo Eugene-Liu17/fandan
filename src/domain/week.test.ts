@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parsePlainDate } from "./date";
-import { getWeekRange, isWithinWeek, weekDates } from "./week";
+import { getWeekRange, weekDates } from "./week";
 
 const d = parsePlainDate;
 
@@ -58,19 +58,5 @@ describe("weekDates", () => {
       "2027-01-02",
       "2027-01-03",
     ]);
-  });
-});
-
-describe("isWithinWeek", () => {
-  const range = getWeekRange(d("2026-09-22"), 1);
-
-  it("includes the start date and excludes the end date", () => {
-    expect(isWithinWeek(range.start, range)).toBe(true);
-    expect(isWithinWeek(d("2026-09-27"), range)).toBe(true);
-    expect(isWithinWeek(range.end, range)).toBe(false);
-  });
-
-  it("returns false for a date entirely outside the week", () => {
-    expect(isWithinWeek(d("2020-01-01"), range)).toBe(false);
   });
 });

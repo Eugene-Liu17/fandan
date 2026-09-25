@@ -74,6 +74,44 @@ describe("getCandidates", () => {
     expect(result.ranked.map((c) => c.recipe.name)).toEqual(["清炒菠菜"]);
   });
 
+  it("applies the wording as well as a narrow payload", async () => {
+    const user = await createUser();
+    await createRecipe("红烧肉", ["五花肉", "冰糖"]);
+    await createRecipe("白灼虾", ["基围虾"]);
+    await createRecipe("清炒菠菜", ["菠菜"]);
+    await db.insert(tasteFacts).values({
+      userId: user.id,
+      type: "restriction",
+      content: "不吃猪肉和海鲜",
+      payload: { kind: "term", text: "不吃猪肉和海鲜" },
+      source: "stated",
+    });
+    const result = await getCandidates(
+      user.id,
+      { targetDate: target },
+      noJitter,
+    );
+    expect(result.ranked.map((c) => c.recipe.name)).toEqual(["清炒菠菜"]);
+  });
+
+  it("quarantines recipes with ingredients the dictionary does not know", async () => {
+    const user = await createUser();
+    await createRecipe("秘制小炒", ["五花肉", "秘制酱"]);
+    await createRecipe("清炒菠菜", ["菠菜"]);
+    const result = await getCandidates(
+      user.id,
+      { targetDate: target },
+      noJitter,
+    );
+    expect(result.ranked.map((c) => c.recipe.name)).toEqual(["清炒菠菜"]);
+    expect(result.excluded).toEqual([
+      expect.objectContaining({
+        reason: "unmapped_ingredient",
+        ingredients: ["秘制酱"],
+      }),
+    ]);
+  });
+
   it("applies main-ingredient + flavor dedupe to a dish logged as eaten out", async () => {
     const user = await createUser({ dedupeWindowDays: 7 });
     const braised = features({

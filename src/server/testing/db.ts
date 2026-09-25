@@ -125,5 +125,5 @@ export async function listEvents(userId: string) {
     .select()
     .from(events)
     .where(eq(events.userId, userId))
-    .orderBy(events.createdAt);
+    .orderBy(events.seq);
 }

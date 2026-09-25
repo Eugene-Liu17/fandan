@@ -41,6 +41,19 @@ try {
 } catch {
   // No .env.local (e.g. CI): DATABASE_URL must already be in the environment.
 }
+
+// The seed rebuilds the demo account, so it must never reach a shared or
+// production database by way of a misconfigured .env.local.
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
+const dbHost = new URL(process.env.DATABASE_URL ?? "postgresql://missing")
+  .hostname;
+if (!LOCAL_HOSTS.has(dbHost) && process.env.SEED_ALLOW_REMOTE !== "1") {
+  console.error(
+    `Refusing to seed ${dbHost}: only local databases are seeded. Set SEED_ALLOW_REMOTE=1 to override.`,
+  );
+  process.exit(1);
+}
+
 const { db, closeDb } = await import("@/server/db/client");
 
 const excluded = (column: string) => sql.raw(`excluded.${column}`);

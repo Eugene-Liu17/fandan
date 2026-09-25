@@ -29,6 +29,14 @@ module.exports = {
       },
     },
     {
+      name: "domain-no-node-core",
+      comment:
+        "src/domain is pure: no Node built-ins (fs, crypto, net ...), which would mean I/O or host state.",
+      severity: "error",
+      from: { path: "^src/domain" },
+      to: { dependencyTypes: ["core"] },
+    },
+    {
       name: "ui-only-services",
       comment:
         "app/ and components/ (outside components/ui, which is presentational shadcn primitives) may only call server/services, never server/db or server/ai directly.",
